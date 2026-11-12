@@ -64,32 +64,33 @@ def visit_counts(s, uids, visits: pd.DataFrame, vid: np.ndarray, cfg):
     return out
 
 
-def visit_profiles(s, uid, visits, lm, cfg, element):
-    """Per-visit spatial rate profile across the bins of one edge (running samples).
+def edge_profiles(s, uids, visits, vid, lm: mz.LinearMaze, cfg):
+    """Running occupancy and spike counts per (visit, position-along-edge).
 
-    Returns (profiles (n_visits, n_bins_edge) with NaN where unvisited, visit index array).
+    Position index runs from the LOWER-id node end. Returns (occ (n_vis, B),
+    {uid: counts (n_vis, B)}, n_bins_of_visit (n_vis,)) with B = longest edge in bins.
+    Node visits have n_bins 0.
     """
-    a, b = map(int, element[1:].split("-"))
-    eb = lm.edge_bins[(a, b)]
-    pos = {bb: i for i, bb in enumerate(eb)}
+    nb = lm.n_bins
+    pos = np.full(nb, -1, int)
+    nbin_edge = np.zeros(nb, int)
+    for e, idx in lm.edge_bins.items():
+        pos[idx] = np.arange(len(idx))
+        nbin_edge[idx] = len(idx)
+    B = int(nbin_edge.max())
     run = running_mask(s, cfg)
-    si = spike_samples(s, s.spikes[uid])
-    sel = visits.index[visits["element"] == element]
-    prof = np.full((len(sel), len(eb)), np.nan)
-    for r, v in enumerate(sel):
-        i0, i1 = visits.at[v, "i0"], visits.at[v, "i1"]
-        m = run[i0:i1]
-        bins = s.bin[i0:i1][m]
-        occ = np.zeros(len(eb))
-        for bb in bins:
-            if bb in pos:
-                occ[pos[bb]] += s.dt
-        spk_i = si[(si >= i0) & (si < i1)]
-        spk_i = spk_i[run[spk_i]]
-        cnt = np.zeros(len(eb))
-        for bb in s.bin[spk_i]:
-            if bb in pos:
-                cnt[pos[bb]] += 1
-        with np.errstate(invalid="ignore", divide="ignore"):
-            prof[r] = np.where(occ > 0, cnt / occ, np.nan)
-    return prof, np.asarray(sel)
+    ok = run & (vid >= 0) & (s.bin >= 0)
+    ok[ok] &= pos[s.bin[ok]] >= 0
+    nv = len(visits)
+    occ = np.bincount(vid[ok] * B + pos[s.bin[ok]], minlength=nv * B).reshape(nv, B) * s.dt
+    cnt = {}
+    for u in uids:
+        si = spike_samples(s, s.spikes[u])
+        si = si[ok[si]]
+        cnt[u] = np.bincount(vid[si] * B + pos[s.bin[si]], minlength=nv * B).reshape(nv, B).astype(float)
+    nbv = np.zeros(nv, int)
+    for k, e in enumerate(visits["element"].to_numpy()):
+        if e.startswith("E"):
+            a, b = map(int, e[1:].split("-"))
+            nbv[k] = len(lm.edge_bins[(a, b)])
+    return occ, cnt, nbv

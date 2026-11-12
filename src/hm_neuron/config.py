@@ -62,6 +62,15 @@ class Visits:
 
 
 @dc.dataclass
+class Goal:
+    radius_m: float = 0.5               # track distance defining the goal zone
+    n_trial_groups: int = 3             # early / middle / late thirds of a session
+    window_trials: int = 3              # sliding window for trial-resolved SI
+    decode_bin_s: float = 1.0           # time bin for early-vs-late map likelihood ratio
+    n_shuffles_window: int = 20         # shuffles for bias-corrected window SI
+
+
+@dc.dataclass
 class Config:
     data_root: Path = Path("/Volumes/genzel/Rat/HM/Rat_HM_Neuron")
     cache_dir: Path = Path.home() / "hm_cache"
@@ -72,6 +81,7 @@ class Config:
     fields: Fields = dc.field(default_factory=Fields)
     theta: Theta = dc.field(default_factory=Theta)
     visits: Visits = dc.field(default_factory=Visits)
+    goal: Goal = dc.field(default_factory=Goal)
     fig_format: tuple = ("pdf", "png")
     dpi: int = 300
 
