@@ -14,12 +14,29 @@ def session_id(row) -> str:
     return f"{row['rat']}_{row['date']}"
 
 
+MAX_ALIGN_ERROR_M = 0.25
+
+
+def session_ok(s):
+    """Usable session: trial times aligned to the tracking and some in-trial data."""
+    err = s.steps.attrs.get("align_error_m", np.nan)
+    if not np.isfinite(err) or err > MAX_ALIGN_ERROR_M:
+        return False, f"trial log does not align with tracking (step-end error {err})"
+    if s.in_trial.sum() < 100:
+        return False, "no in-trial samples"
+    return True, ""
+
+
 def iter_loaded(sessions: pd.DataFrame, cfg, with_fields=True, verbose=True):
     """Yield (catalog_row, Session, field_result_or_None)."""
     for _, row in sessions.iterrows():
         if verbose:
             print(f"  {row['rat']} {row['date']} (day {row['day']}, goal {row['goal']})", flush=True)
         s = io.load_session(cfg, row["rat"], str(row["date"]))
+        ok, why = session_ok(s)
+        if not ok:
+            print(f"    skipped: {why}", flush=True)
+            continue
         F = fl.session_fields(s, cfg) if with_fields else None
         yield row, s, F
 
@@ -47,12 +64,16 @@ def valid_track(R, lm: mz.LinearMaze):
 def goal_null_distances(R, lm, goal, weight="length"):
     """Distances to goal of valid bins with their weights (track length or occupancy)."""
     v = R["valid"]
+    if not v.any():
+        return np.array([np.nan]), np.array([1.0])
     d = lm.dist_to_node(goal)[v]
     w = (lm.bins["length"].to_numpy() if weight == "length" else R["occ"])[v]
     return d, w / w.sum()
 
 
 def weighted_quantile(x, w, q):
+    if len(x) == 0 or not np.isfinite(x).any():
+        return np.nan
     o = np.argsort(x)
     cw = np.cumsum(w[o])
     return np.interp(q, cw / cw[-1], x[o])

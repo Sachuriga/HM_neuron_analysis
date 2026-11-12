@@ -86,6 +86,9 @@ def theta_vs_speed(lfp: dict, s, cfg, speed_bins=(0.02, 0.05, 0.1, 0.2, 0.3, 0.5
     tc = lfp["t0"] + (starts + n / 2) / fs
     sp = np.interp(tc, s.t, np.nan_to_num(s.speed))
     intr = np.interp(tc, s.t, s.in_trial.astype(float)) > 0.5
+    if not intr.any():
+        e = np.array([])
+        return dict(speed=e, ratio=e, freq=e, bins=np.asarray(speed_bins))
     segs = np.stack([x[i:i + n] for i in starts[intr]])
     f, p = signal.welch(segs, fs, nperseg=n, axis=1)
     th = (f >= cfg.theta.band_hz[0]) & (f <= cfg.theta.band_hz[1])

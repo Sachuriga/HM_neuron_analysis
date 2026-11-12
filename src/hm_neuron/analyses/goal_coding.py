@@ -41,6 +41,8 @@ def _goal_cells(F, R, lm, goal, radius):
     pc = R["units"][R["units"]["is_place"]]
     if pc.empty:
         return dict(frac_goal_cells=np.nan, exp_frac_goal_cells=np.nan, goal_cells_z=np.nan, goal_cells_p=np.nan)
+    if F.empty:
+        return dict(frac_goal_cells=np.nan, exp_frac_goal_cells=np.nan, goal_cells_z=np.nan, goal_cells_p=np.nan)
     has = F[F["is_place"]].groupby("unit")["goal_dist_m"].min() <= radius
     obs = has.reindex(pc["unit"]).fillna(False).astype(float).to_numpy()
     pexp = 1 - (1 - q) ** pc["n_fields"].to_numpy()

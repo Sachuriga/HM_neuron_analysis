@@ -20,7 +20,7 @@ from scipy.ndimage import gaussian_filter1d
 from . import maze as mz
 
 _DESC = re.compile(r"(Rat\d+).*?(\d{8}).*?Repeat (\d+), Day (\d+), Session (\d+), Goal_Node (\d+)")
-CACHE_VERSION = 2
+CACHE_VERSION = 3
 
 
 # ----------------------------------------------------------------------------- catalog
@@ -118,29 +118,113 @@ def _dec(a):
 
 
 def _read_nwb(path: str) -> dict:
-    with h5py.File(path, "r") as f:
-        pos = f["processing/Behavior/Position/Rat"]
-        xy = pos["data"][:].astype(float)
-        t = pos["timestamps"][:].astype(float)
-        T = f["processing/Behavior/Trials_Data"]
-        steps = pd.DataFrame({c: (_dec(T[c][:]) if T[c].dtype == object else T[c][:])
-                              for c in T if isinstance(T[c], h5py.Dataset) and T[c].ndim == 1})
-        U = f["units"]
-        cols = [c for c in U.attrs["colnames"] if c not in ("spike_times", "waveform_mean")]
-        ids = U["id"][:]
-        units = pd.DataFrame({c: (_dec(U[c][:]) if U[c].dtype == object else U[c][:])
-                              for c in cols if c in U and U[c].shape == ids.shape}, index=ids)
-        units.index.name = "unit"
-        idx = U["spike_times_index"][:]
-        st = U["spike_times"]
-        keep = units["quality_label"].to_numpy() != "noise"
-        spikes, start = {}, 0
-        for uid, stop, k in zip(ids, idx, keep):
-            if k:
-                spikes[int(uid)] = st[start:stop].astype(float)
-            start = stop
-        units = units[keep]
-    return dict(xy=xy, t=t, steps=steps, units=units, spikes=spikes)
+    f = h5py.File(path, "r")
+    try:
+        return _read_open(f)
+    finally:
+        try:
+            f.close()
+        except RuntimeError:
+            pass    # SMB volume: 'Bad file descriptor' on close, data already read
+
+
+def _read_open(f) -> dict:
+    pos = f["processing/Behavior/Position/Rat"]
+    xy = pos["data"][:].astype(float)
+    t = pos["timestamps"][:].astype(float)
+    ref = f["timestamps_reference_time"][()]
+    ref = pd.Timestamp(ref.decode() if isinstance(ref, bytes) else str(ref)).timestamp()
+    T = f["processing/Behavior/Trials_Data"]
+    steps = pd.DataFrame({c: (_dec(T[c][:]) if T[c].dtype == object else T[c][:])
+                          for c in T if isinstance(T[c], h5py.Dataset) and T[c].ndim == 1})
+    U = f["units"]
+    cols = [c for c in U.attrs["colnames"] if c not in ("spike_times", "waveform_mean")]
+    ids = U["id"][:]
+    units = pd.DataFrame({c: (_dec(U[c][:]) if U[c].dtype == object else U[c][:])
+                          for c in cols if c in U and U[c].shape == ids.shape}, index=ids)
+    units.index.name = "unit"
+    idx = U["spike_times_index"][:]
+    st = U["spike_times"]
+    keep = units["quality_label"].to_numpy() != "noise"
+    spikes, start = {}, 0
+    for uid, stop, k in zip(ids, idx, keep):
+        if k:
+            spikes[int(uid)] = st[start:stop].astype(float)
+        start = stop
+    units = units[keep]
+    return dict(xy=xy, t=t, steps=steps, units=units, spikes=spikes, ref_epoch=ref)
+
+
+def _read_nwb_retry(path, tries=3):
+    """The SMB volume occasionally fails on h5py close ('Bad file descriptor'); retry."""
+    import time
+    for k in range(tries):
+        try:
+            return _read_nwb(path)
+        except (OSError, RuntimeError):
+            if k == tries - 1:
+                raise
+            time.sleep(2)
+
+
+TIME_COLS = ("Time_start", "Time_end", "Trial_start_time", "Trial_end_time", "Trial_start_s", "Trial_end_s")
+
+
+def _step_alignment_error(steps, t, x, y, offset):
+    """Median distance (m) between tracked position at each step end and its Next_node."""
+    pos = mz.build_graph().nodes
+    nn = pd.to_numeric(steps["Next_node"], errors="coerce")
+    ok = nn.isin(list(pos)).to_numpy()
+    if ok.sum() < 5:
+        return np.nan
+    te = steps["Time_end"].to_numpy(float)[ok] + offset
+    px = np.interp(te, t, x, left=np.nan, right=np.nan)
+    py = np.interp(te, t, y, left=np.nan, right=np.nan)
+    nxy = np.array([pos[int(n)]["pos"] for n in nn[ok]])
+    d = np.hypot(px - nxy[:, 0], py - nxy[:, 1])
+    return float(np.nanmedian(d)) if np.isfinite(d).sum() >= 5 else np.nan
+
+
+def _fix_step_times(steps, ref_epoch, t, x, y, label=""):
+    """Put all step/trial times on the session (ephys) clock and validate them.
+
+    Some NWBs store trial times as Unix epoch seconds; these are converted by
+    subtracting ``timestamps_reference_time``. The alignment is then checked
+    against the data: the tracked position at each step's end should sit on its
+    ``Next_node``. If the median error is > 0.25 m, the offset minimising it is
+    searched (coarse 1 s grid over +-4 h, then 0.1 s) and applied only if the
+    error falls below 0.15 m. ``steps.attrs`` records offset and error.
+    """
+    import warnings
+    steps = steps.copy()
+    epoch = bool(np.nanmedian(steps["Time_start"]) > 1e8)
+    if epoch:
+        for c in TIME_COLS:
+            if c in steps and np.nanmedian(steps[c]) > 1e8:
+                steps[c] = steps[c] - ref_epoch
+    err0 = _step_alignment_error(steps, t, x, y, 0.0)
+    shift, err = 0.0, err0
+    if not (np.isfinite(err0) and err0 <= 0.25):
+        grid = np.arange(-4 * 3600, 4 * 3600 + 1, 1.0)
+        errs = np.array([_step_alignment_error(steps, t, x, y, o) for o in grid])
+        if np.isfinite(errs).any():
+            o = grid[np.nanargmin(errs)]
+            fine = np.arange(o - 1, o + 1.01, 0.1)
+            fe = np.array([_step_alignment_error(steps, t, x, y, v) for v in fine])
+            best, berr = fine[np.nanargmin(fe)], np.nanmin(fe)
+            if berr < 0.15:
+                shift, err = float(best), float(berr)
+        if shift:
+            warnings.warn(f"{label}: trial times shifted by {shift:+.1f} s "
+                          f"(step-end error {err0:.2f} -> {err:.2f} m)", stacklevel=2)
+            for c in TIME_COLS:
+                if c in steps:
+                    steps[c] = steps[c] + shift
+        else:
+            warnings.warn(f"{label}: trial times could not be aligned (step-end error {err0:.2f} m)",
+                          stacklevel=2)
+    steps.attrs.update(time_shift_s=shift, align_error_m=err, was_epoch=epoch)
+    return steps
 
 
 def _clean_position(t, xy_px, max_gap_s=0.5, smooth_s=0.1):
@@ -202,12 +286,12 @@ def load_session(cfg, rat: str, date: str, refresh=False) -> Session:
         d["meta"] = meta
         return Session(**d)
 
-    raw = _read_nwb(meta["path"])
+    raw = _read_nwb_retry(meta["path"])
     t, x, y = _clean_position(raw["t"], raw["xy"])
     speed = _speed(t, x, y, cfg.fields.speed_smooth_s)
     lm = mz.maze_from_cfg(cfg)
     b = lm.project(x, y)
-    steps = raw["steps"]
+    steps = _fix_step_times(raw["steps"], raw["ref_epoch"], t, x, y, f"{rat} {date}")
     for c in ("Start_node", "Next_node", "Goal_node"):
         steps[c] = pd.to_numeric(steps[c], errors="coerce").astype("Int64")
     trials = _trial_table(steps)

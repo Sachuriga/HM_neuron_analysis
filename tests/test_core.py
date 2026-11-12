@@ -101,3 +101,22 @@ def test_config_yaml(tmp_path):
     with pytest.raises(KeyError):
         p.write_text("nope: 1\n")
         Config.from_yaml(p)
+
+
+# ----------------------------------------------------------------------------- time alignment
+def test_step_time_alignment(lm):
+    import pandas as pd
+    from hm_neuron import io
+    s = make_session(lm, {1: lambda b: np.ones(b.shape)}, n_steps=200)
+    # steps: times when the walk reaches each node (positions sit exactly on nodes)
+    nodes = np.array([lm.G.nodes[n]["pos"] for n in lm.G.nodes])
+    ids = np.array(list(lm.G.nodes))
+    d = np.hypot(s.x[:, None] - nodes[:, 0], s.y[:, None] - nodes[:, 1])
+    at = np.where(d.min(1) < 1e-9)[0][1:60]
+    steps = pd.DataFrame(dict(Next_node=ids[d[at].argmin(1)], Time_end=s.t[at], Time_start=s.t[at] - 1))
+    ref = 1.78e9
+    epoch = steps.assign(Time_start=steps.Time_start + ref + 123.0, Time_end=steps.Time_end + ref + 123.0)
+    fixed = io._fix_step_times(epoch, ref, s.t, s.x, s.y)
+    assert fixed.attrs["was_epoch"]
+    assert fixed.attrs["time_shift_s"] == pytest.approx(-123.0, abs=0.15)
+    assert np.allclose(fixed["Time_end"], steps["Time_end"], atol=0.15)

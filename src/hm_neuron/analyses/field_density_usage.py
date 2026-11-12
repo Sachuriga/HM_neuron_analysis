@@ -28,7 +28,7 @@ def run(sessions, cfg):
     rows = []
     for row, s, R in common.iter_loaded(sessions, cfg):
         vis, _ = V.segment_visits(s, cfg, lm)
-        nvis = vis.groupby("element").size()
+        nvis = vis.groupby("element").size() if len(vis) else pd.Series(dtype=int)
         f = R["fields"]
         f = f[f["is_place"]] if len(f) else f
         npk = f.groupby("peak_element").size() if len(f) else pd.Series(dtype=int)

@@ -65,7 +65,7 @@ def _maps(s, R, lm, cfg):
     peaks = np.bincount(F["peak_bin"].to_numpy(int), minlength=lm.n_bins) if len(F) else np.zeros(lm.n_bins)
     density = (K @ peaks) / (K @ L) / npc
     cov = np.zeros(lm.n_bins)
-    for u, g in F.groupby("unit"):
+    for u, g in (F.groupby("unit") if len(F) else []):
         m = np.zeros(lm.n_bins, bool)
         m[np.concatenate(g["bins"].to_list())] = True
         cov += m

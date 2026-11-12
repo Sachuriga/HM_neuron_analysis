@@ -11,6 +11,7 @@ Common options: ``--config my.yaml``, ``--out results_dir``.
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 import sys
 import traceback
 
@@ -55,10 +56,27 @@ def main(argv=None):
         for k, m in analyses.all_analyses().items():
             print(f"{k:22s} {m.TITLE}")
     elif a.cmd == "cache":
+        import numpy as np
+        import pandas as pd
+        from .analyses.common import session_ok
         sel = runner.select(cfg, a.rat, a.date, a.query)
+        qc = []
         for r in sel.itertuples():
-            print(r.rat, r.date, flush=True)
-            fields.session_fields(io.load_session(cfg, r.rat, str(r.date)), cfg)
+            s = io.load_session(cfg, r.rat, str(r.date))
+            ok, why = session_ok(s)
+            R = fields.session_fields(s, cfg) if ok else None
+            qc.append(dict(rat=r.rat, date=r.date, day=r.day, usable=ok, reason=why,
+                           was_epoch=s.steps.attrs.get("was_epoch"), time_shift_s=s.steps.attrs.get("time_shift_s"),
+                           align_error_m=s.steps.attrs.get("align_error_m"), n_trials=len(s.trials),
+                           in_trial_frac=float(s.in_trial.mean()),
+                           run_frac_in_trial=float(np.nanmean(s.speed[s.in_trial] > cfg.fields.speed_min_m_s))
+                           if s.in_trial.any() else np.nan,
+                           n_units=len(R["units"]) if R else 0,
+                           n_place=int(R["units"]["is_place"].sum()) if R else 0))
+            print(pd.DataFrame(qc[-1:]).to_string(index=False, header=len(qc) == 1), flush=True)
+        out = Path(cfg.cache_dir) / "session_qc.csv"
+        pd.DataFrame(qc).to_csv(out, index=False)
+        print("QC table ->", out)
     elif a.cmd == "run":
         names = analyses.MODULES if a.analysis == "all" else [a.analysis]
         failed = []

@@ -58,6 +58,7 @@ def run(sessions, cfg):
                  dict(session_id=r.session_id, rat=r.rat, kind="edge", n=r.n_edge,
                       log_len=np.log(1 - r.exp_frac_len), log_occ=np.log(1 - r.exp_frac_occ))]
     long = pd.DataFrame(long)
+    long = long[long["session_id"].isin(ses.loc[ses["n"] > 0, "session_id"])]
     glm = []
     for off in ("log_len", "log_occ"):
         for grp, d in [("pooled", long)] + list(long.groupby("rat")):

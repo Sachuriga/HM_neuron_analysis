@@ -40,7 +40,8 @@ def run(sessions, cfg):
         run = tv["speed"] >= 0.1
         srows.append(dict(session_id=sid, rat=row["rat"], day=row["day"], channel=int(L["channel"]),
                           theta_delta_run=float(np.median(tv["ratio"][run])) if run.any() else np.nan,
-                          theta_delta_still=float(np.median(tv["ratio"][tv["speed"] < 0.02])),
+                          theta_delta_still=float(np.median(tv["ratio"][tv["speed"] < 0.02]))
+                          if (tv["speed"] < 0.02).any() else np.nan,
                           theta_freq_run=float(np.median(tv["freq"][run])) if run.any() else np.nan))
         runmask = fl.running_mask(s, cfg)
         for u in s.select_units(cfg, cell_type=False):
