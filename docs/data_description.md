@@ -51,3 +51,12 @@ Units per session: 30-137 good plus 6-126 MUA. 9-33 trials per session (Day 0 ha
 5. LFP: which channel(s) to use for theta (pyramidal layer?), and whether all 32 channels are in hippocampus.
 6. Time base: position timestamps are negative before ephys start. Confirm everything in the NWB shares the ephys clock.
 7. Unit inclusion: `good` only, or `good`+`mua`? Use `cell_type == pyramidal` for field analyses?
+
+## Decisions (2026-11-12)
+1. Cross-goal analyses are population-level; there is no cross-day unit matching.
+2. Session 1 of a Repeat is an old-goal recall day; the new goal starts on the next day.
+3. Field analyses use `good` + `pyramidal` units by default.
+4. Node/edge zones come from projecting position onto the maze graph, with an 8 cm node radius
+   (configurable). `region_id` turned out to be the camera id, not a maze region.
+5. Trial windows use `Trial_start_time`/`Trial_end_time`, which every NWB has
+   (`Trial_start_s`/`_end_s` exist in only half of them).
