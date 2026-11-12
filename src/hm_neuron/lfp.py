@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import h5py
 import numpy as np
 from scipy import signal
 
@@ -29,7 +28,8 @@ def load_reference_lfp(s, cfg, refresh=False):
     if cache.exists() and not refresh:
         d = np.load(cache)
         return {k: (d[k].item() if d[k].ndim == 0 else d[k]) for k in d.files}
-    with h5py.File(s.path, "r") as f:
+    from .io import open_nwb
+    with open_nwb(s.path) as f:
         ds = f["acquisition/lfp/data"]
         fs = float(f["acquisition/lfp/starting_time"].attrs["rate"])
         t0 = float(f["acquisition/lfp/starting_time"][()])

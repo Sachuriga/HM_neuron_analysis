@@ -40,7 +40,7 @@ def catalog(cfg, refresh=False) -> pd.DataFrame:
         return pd.read_csv(cache, dtype={"date": str})
     rows = []
     for p in find_task_nwbs(cfg.data_root):
-        with h5py.File(p, "r") as f:
+        with open_nwb(p) as f:
             d = f["session_description"][()]
             d = d.decode() if isinstance(d, bytes) else str(d)
         m = _DESC.search(d)
@@ -117,15 +117,27 @@ def _dec(a):
     return np.array([x.decode() if isinstance(x, bytes) else x for x in a])
 
 
-def _read_nwb(path: str) -> dict:
-    f = h5py.File(path, "r")
-    try:
-        return _read_open(f)
-    finally:
+class open_nwb:
+    """``h5py.File`` context that ignores the SMB volume's spurious
+    'Bad file descriptor' error on close (data are already read by then)."""
+
+    def __init__(self, path):
+        self.f = h5py.File(path, "r")
+
+    def __enter__(self):
+        return self.f
+
+    def __exit__(self, *exc):
         try:
-            f.close()
+            self.f.close()
         except RuntimeError:
-            pass    # SMB volume: 'Bad file descriptor' on close, data already read
+            pass
+        return False
+
+
+def _read_nwb(path: str) -> dict:
+    with open_nwb(path) as f:
+        return _read_open(f)
 
 
 def _read_open(f) -> dict:
