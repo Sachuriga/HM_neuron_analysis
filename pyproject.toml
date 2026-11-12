@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hm_neuron"
+version = "0.1.0"
+description = "Single-unit and LFP analysis of hippocampal recordings on the HexMaze"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "matplotlib",
+    "networkx",
+    "h5py",
+    "pyyaml",
+    "statsmodels",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+hm = "hm_neuron.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+hm_neuron = ["data/*.csv", "data/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
