@@ -56,3 +56,39 @@ def weighted_quantile(x, w, q):
     o = np.argsort(x)
     cw = np.cumsum(w[o])
     return np.interp(q, cw / cw[-1], x[o])
+
+
+def trial_groups(s, n_groups):
+    """Split the session's trials into `n_groups` consecutive groups -> list of trial-number arrays."""
+    tr = s.trials["trial"].to_numpy()
+    return [g for g in np.array_split(tr, n_groups) if len(g)]
+
+
+def group_fields(s, R, cfg, lm, trials):
+    """Rate maps + fields of the session's place cells using only `trials`."""
+    pcs = list(R["units"].loc[R["units"]["is_place"], "unit"])
+    m = np.isin(s.trial_id, trials)
+    M = fl.rate_maps(s, pcs, cfg, mask=m, lm=lm)
+    rows = []
+    for k, u in enumerate(pcs):
+        for j, fd in enumerate(fl.detect_fields(M["rate"][k], M["valid"], lm, cfg, goal=s.goal)):
+            fd.pop("bins")
+            rows.append(dict(unit=u, field=j, **fd))
+    return M, pd.DataFrame(rows), pcs
+
+
+def goal_enrichment(peak_bins, valid, lm, node, radius):
+    """Observed / expected fraction of field peaks within `radius` (track) of `node`.
+
+    Expected = fraction of valid track length inside the zone (uniform placement).
+    """
+    if node is None or (isinstance(node, float) and np.isnan(node)) or pd.isna(node):
+        return dict(n=len(peak_bins), n_in=np.nan, frac_in=np.nan, exp_frac=np.nan, enrichment=np.nan)
+    d = lm.dist_to_node(int(node))
+    L = lm.bins["length"].to_numpy()
+    zone = d <= radius
+    exp = L[valid & zone].sum() / L[valid].sum()
+    n_in = int(zone[np.asarray(peak_bins, int)].sum()) if len(peak_bins) else 0
+    n = len(peak_bins)
+    return dict(n=n, n_in=n_in, frac_in=n_in / n if n else np.nan, exp_frac=exp,
+                enrichment=(n_in / n) / exp if n and exp > 0 else np.nan)

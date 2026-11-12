@@ -20,7 +20,7 @@ from scipy.ndimage import gaussian_filter1d
 from . import maze as mz
 
 _DESC = re.compile(r"(Rat\d+).*?(\d{8}).*?Repeat (\d+), Day (\d+), Session (\d+), Goal_Node (\d+)")
-CACHE_VERSION = 1
+CACHE_VERSION = 2
 
 
 # ----------------------------------------------------------------------------- catalog
@@ -177,8 +177,9 @@ def _speed(t, x, y, smooth_s):
 def _trial_table(steps: pd.DataFrame) -> pd.DataFrame:
     g = steps.groupby("Trial_Num")
     tr = pd.DataFrame({
-        "t_start": g["Trial_start_s"].first(),
-        "t_end": g["Trial_end_s"].first(),
+        # Trial_start_s/_end_s exist in only half the NWBs; *_time is in all of them
+        "t_start": g["Trial_start_time"].first(),
+        "t_end": g["Trial_end_time"].first(),
         "start_node": g["Start_node"].first().astype(int),
         "goal": g["Goal_node"].first().astype(int),
         "n_steps": g.size(),

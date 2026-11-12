@@ -190,7 +190,8 @@ def session_fields(s, cfg, refresh=False, lm=None):
     """
     lm = lm or mz.maze_from_cfg(cfg)
     key = cfg.key("fields+lin+units")
-    cache = Path(cfg.cache_dir) / "fields" / f"{s.label}_{key}.pkl"
+    from .io import CACHE_VERSION
+    cache = Path(cfg.cache_dir) / "fields" / f"{s.label}_v{CACHE_VERSION}_{key}.pkl"
     if cache.exists() and not refresh:
         with open(cache, "rb") as fh:
             return pickle.load(fh)
