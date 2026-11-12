@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import time
+import warnings
 from pathlib import Path
 
 import pandas as pd
@@ -30,7 +31,9 @@ def run_analysis(name, cfg, rats=None, dates=None, query=None, make_plots=True):
         raise ValueError("no sessions selected")
     print(f"[{name}] {mod.TITLE} — {len(sessions)} sessions", flush=True)
     t0 = time.time()
-    res = mod.run(sessions, cfg)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        res = mod.run(sessions, cfg)
     out = Path(cfg.out_dir) / name
     out.mkdir(parents=True, exist_ok=True)
     for k, df in res.items():
