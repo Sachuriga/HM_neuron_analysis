@@ -18,7 +18,7 @@ from . import common
 
 NAME = "theta"
 TITLE = "Theta power vs speed; spike-theta phase locking"
-DEFAULT_QUERY = "day > 0"
+DEFAULT_QUERY = "repeat > 0"  # repeat 0 = habituation, not training
 
 
 def run(sessions, cfg):

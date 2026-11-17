@@ -39,8 +39,9 @@ def run_analysis(name, cfg, rats=None, dates=None, query=None, make_plots=True):
     for k, df in res.items():
         if isinstance(df, pd.DataFrame):
             df.to_csv(out / f"{k}.csv", index=False)
+    from . import report  # lazy: report imports runner
     (out / "run_info.json").write_text(json.dumps(dict(
-        analysis=name, sessions=sessions[["rat", "date"]].astype(str).values.tolist(),
+        analysis=name, code_hash=report.fingerprint(name, cfg, sessions), sessions=sessions[["rat", "date"]].astype(str).values.tolist(),
         query=query, config=cfg.to_dict(), runtime_s=round(time.time() - t0, 1)),
         indent=1, default=str))
     if make_plots:

@@ -44,6 +44,7 @@ class Fields:
     shuffle_min_shift_s: float = 20.0
     alpha: float = 0.05
     seed: int = 0
+    n_null_maps: int = 5                # spike-shift surrogate maps per cell (field-detection null)
 
 
 @dc.dataclass

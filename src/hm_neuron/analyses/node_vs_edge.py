@@ -18,7 +18,7 @@ from . import common
 
 NAME = "node_vs_edge"
 TITLE = "Node vs edge fields, normalised by track length and occupancy"
-DEFAULT_QUERY = "day > 0"
+DEFAULT_QUERY = "repeat > 0"  # repeat 0 = habituation, not training
 
 
 def run(sessions, cfg):

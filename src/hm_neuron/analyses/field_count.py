@@ -20,12 +20,12 @@ import numpy as np
 import pandas as pd
 from scipy import optimize, special, stats as st
 
-from .. import maze as mz, plotting as P, stats as S
+from .. import fields as fl, maze as mz, plotting as P, stats as S
 from . import common
 
 NAME = "field_count"
 TITLE = "Number of fields per cell: distribution fits"
-DEFAULT_QUERY = "day > 0"
+DEFAULT_QUERY = "repeat > 0"  # repeat 0 = habituation, not training
 KMAX = 400
 
 
@@ -87,12 +87,34 @@ def fit(k: np.ndarray) -> pd.DataFrame:
                               options=dict(maxiter=4000, xatol=1e-6, fatol=1e-8))
         n, p = len(k), len(x0)
         rows.append(dict(model=m, loglik=-r.fun, n_params=p, n=n,
-                         aic=2 * p + 2 * r.fun, bic=p * np.log(n) + 2 * r.fun, params=list(r.x)))
+                         aic=2 * p + 2 * r.fun, bic=p * np.log(n) + 2 * r.fun, params=list(r.x),
+                         **gof(m, r.x, k)))
     df = pd.DataFrame(rows)
     df["delta_aic"] = df["aic"] - df["aic"].min()
     df["delta_bic"] = df["bic"] - df["bic"].min()
     df["aic_weight"] = np.exp(-df["delta_aic"] / 2) / np.exp(-df["delta_aic"] / 2).sum()
     return df.sort_values("aic").reset_index(drop=True)
+
+
+def gof(model, params, k, min_expected=5.0):
+    """Pearson chi-square goodness of fit; neighbouring counts are pooled until expected >= 5."""
+    k = np.asarray(k, int)
+    ks = np.arange(1, KMAX + 1)
+    obs = np.bincount(k, minlength=KMAX + 1)[1:].astype(float)
+    exp = len(k) * pmf(model, params, ks)
+    O, E, o, e = [], [], 0.0, 0.0
+    for oi, ei in zip(obs, exp):
+        o, e = o + oi, e + ei
+        if e >= min_expected:
+            O.append(o); E.append(e); o = e = 0.0
+    if O and (o or e):
+        O[-1] += o; E[-1] += e
+    O, E = np.array(O), np.array(E)
+    dof = len(O) - 1 - len(params)
+    if dof < 1:
+        return dict(gof_chi2=np.nan, gof_dof=dof, gof_p=np.nan)
+    chi2 = float(((O - E) ** 2 / E).sum())
+    return dict(gof_chi2=chi2, gof_dof=int(dof), gof_p=float(st.chi2.sf(chi2, dof)))
 
 
 def pmf(model, params, ks):
@@ -119,7 +141,11 @@ def run(sessions, cfg):
     U = []
     for row, s, R in common.iter_loaded(sessions, cfg):
         track = sum(common.valid_track(R, lm).values())
-        U.append(R["units"].assign(session_id=common.session_id(row), valid_track_m=track))
+        N = fl.null_fields(s, R, cfg, lm)
+        u = R["units"].assign(session_id=common.session_id(row), valid_track_m=track)
+        u["n_fields_null"] = u["unit"].map(dict(zip(N["units"], N["n_fields"].mean(1))))
+        u["n_fields_null_1"] = u["unit"].map(dict(zip(N["units"], N["n_fields"][:, 0])))
+        U.append(u)
     U = pd.concat(U, ignore_index=True)
     pc = U[U["is_place"]].copy()
     pc["fields_per_10m"] = pc["n_fields"] / pc["valid_track_m"] * 10
@@ -131,37 +157,143 @@ def run(sessions, cfg):
     conf = pd.DataFrame([
         dict(test="n_fields ~ mean_hz (Spearman)", **S.spearman(pc["mean_hz"].to_numpy(), pc["n_fields"].to_numpy())),
         dict(test="n_fields ~ day (Spearman)", **S.spearman(pc["day"].to_numpy(float), pc["n_fields"].to_numpy(float))),
+        dict(test="n_fields ~ surrogate n_fields (Spearman)",
+             **S.spearman(pc["n_fields_null"].to_numpy(float), pc["n_fields"].to_numpy(float))),
+        dict(test="surrogate n_fields ~ mean_hz (Spearman)",
+             **S.spearman(pc["mean_hz"].to_numpy(), pc["n_fields_null"].to_numpy(float))),
     ])
     summary = pc.groupby(["rat"]).agg(n_cells=("unit", "size"), n_sessions=("session_id", "nunique"),
                                       mean=("n_fields", "mean"), median=("n_fields", "median"),
-                                      var=("n_fields", "var")).reset_index()
+                                      var=("n_fields", "var"), null_mean=("n_fields_null", "mean"),
+                                      null_median=("n_fields_null_1", "median")).reset_index()
     summary["fano"] = summary["var"] / summary["mean"]
+    summary["frac_above_null"] = [float((g["n_fields"] > g["n_fields_null"]).mean())
+                                  for _, g in pc.groupby("rat")]
     return dict(units=U, fits=fits, confounds=conf, summary=summary)
+
+
+MODEL_COLORS = {"lognormal": "#0072b2", "gaussian": "#d55e00", "negbin": "#009e73",
+                "geometric": "#999999", "poisson": "#cc79a7"}
 
 
 def plot(res, cfg):
     U = res["units"]
     pc = U[U["is_place"]]
     fits = res["fits"]
-    fig, ax = P.figure(180, 60, ncols=3)
+    fig, axs = P.figure(180, 110, nrows=2, ncols=2)
+    ax = axs.ravel()
     k = pc["n_fields"].to_numpy()
     ks = np.arange(1, k.max() + 1)
     h = np.bincount(k, minlength=k.max() + 1)[1:] / len(k)
-    ax[0].bar(ks, h, color="0.75", width=1.0, label="data")
     pooled = fits[fits["group"] == "pooled"]
-    for r in pooled.itertuples():
-        th = [float(v) for v in r.params.split(";")]
-        ax[0].plot(ks, pmf(r.model, th, ks), label=f"{r.model} (ΔAIC {r.delta_aic:.0f})")
-    ax[0].set(xlabel="fields per place cell", ylabel="fraction of cells", yscale="log",
-              ylim=(0.5 / len(k), None))
+    for a in ax[:2]:
+        a.bar(ks, h, color="0.8", width=1.0, label=f"data (n = {len(k)})")
+        for r in pooled.itertuples():
+            th = [float(v) for v in r.params.split(";")]
+            a.plot(ks, pmf(r.model, th, ks), color=MODEL_COLORS[r.model],
+                   label=f"{r.model} (ΔAIC {r.delta_aic:.0f})")
+        kn = pc["n_fields_null_1"].dropna().to_numpy(int)
+        hn = np.bincount(kn, minlength=k.max() + 2)[:k.max() + 2] / len(kn)
+        a.step(np.arange(len(hn)), hn, where="mid", color="k", lw=0.7, label="spike-shift surrogate")
+        a.set(xlabel="fields per place cell", ylabel="fraction of cells")
+    ax[0].set(ylim=(0, h.max() * 1.25), title="linear scale")
     ax[0].legend(frameon=False)
+    ax[1].set(yscale="log", ylim=(0.5 / len(k), 1), title="log scale")
+    # survival: data per rat + pooled log-normal / Gaussian
     for rat, g in pc.groupby("rat"):
         kk = np.sort(g["n_fields"].to_numpy())
-        ax[1].plot(kk, 1 - np.arange(len(kk)) / len(kk), drawstyle="steps-post",
+        ax[2].plot(kk, 1 - np.arange(len(kk)) / len(kk), drawstyle="steps-post",
                    color=P.RAT_COLORS.get(rat), label=rat)
-    ax[1].set(xscale="log", yscale="log", xlabel="fields per cell", ylabel="P(N ≥ n)")
-    ax[1].legend(frameon=False)
+    for r in pooled.itertuples():
+        if r.model in ("lognormal", "gaussian"):
+            th = [float(v) for v in r.params.split(";")]
+            sf = 1 - np.concatenate([[0], np.cumsum(pmf(r.model, th, ks))[:-1]])
+            ax[2].plot(ks, sf, "--", lw=0.8, color=MODEL_COLORS[r.model], label=f"{r.model} fit (pooled)")
+    ax[2].set(xscale="log", yscale="log", xlabel="fields per cell, n", ylabel="P(N ≥ n)",
+              ylim=(0.5 / len(k), 1.5))
+    ax[2].legend(frameon=False)
     for rat, g in pc.groupby("rat"):
-        ax[2].scatter(g["mean_hz"], g["n_fields"], s=3, alpha=0.5, color=P.RAT_COLORS.get(rat))
-    ax[2].set(xscale="log", xlabel="mean running rate (Hz)", ylabel="fields per cell")
+        ax[3].scatter(g["mean_hz"], g["n_fields"], s=3, alpha=0.4, color=P.RAT_COLORS.get(rat),
+                      label=rat, linewidths=0)
+    q = pd.qcut(pc["mean_hz"], 12, duplicates="drop")
+    m = pc.groupby(q, observed=True).agg(x=("mean_hz", "median"), y=("n_fields_null", "mean"))
+    ax[3].plot(m["x"], m["y"], "k-", lw=1.0, label="surrogate (mean)")
+    ax[3].set(xscale="log", yscale="log", xlabel="mean running rate (Hz)", ylabel="fields per cell")
+    ax[3].legend(frameon=False)
     return [("field_count", fig)]
+
+
+# ----------------------------------------------------------------------------- LaTeX report
+MODEL_LABELS = {"poisson": "Poisson (ZT)", "negbin": "negative binomial (ZT)", "geometric": "geometric",
+                "lognormal": "log-normal (discretised)", "gaussian": "Gaussian (discretised)"}
+
+CAPTIONS = {"field_count": (
+    r"\textbf{Fields per place cell.} Top: distribution over all place cells (bars) with the "
+    r"maximum-likelihood fit of each candidate model, on a linear (left) and logarithmic (right) "
+    r"$y$-axis; $\Delta$AIC relative to the best model in the legend. Bottom left: survival function "
+    r"$P(N\geq n)$ per rat on log--log axes with the pooled log-normal and Gaussian fits (dashed). "
+    r"Bottom right: field count against mean running rate, one dot per place cell. "
+    r"Black: the same cells after circularly shifting their spikes in time (spatial tuning destroyed, "
+    r"rate and maze sampling preserved), i.e.\ the noise floor of the field detector.")}
+
+
+def latex(T):
+    from .. import report as R
+    fits, summ, conf = T["fits"], T["summary"], T["confounds"]
+    U = T["units"]
+    pc = U[U["is_place"]]
+    out = [rf"{len(pc):,} of {len(U):,} good pyramidal units were place cells "
+           rf"({pc['session_id'].nunique()} sessions, {pc['rat'].nunique()} rats); they had "
+           rf"{pc['n_fields'].mean():.2f} fields on average (median {pc['n_fields'].median():.0f}, "
+           rf"range {pc['n_fields'].min()}--{pc['n_fields'].max()}; Table~\ref{{tab:field_count:summary}})."
+           .replace(",", "{,}", 2)]
+    nm, om = pc["n_fields_null"].mean(), pc["n_fields"].mean()
+    above = (pc["n_fields"] > pc["n_fields_null"]).mean()
+    out[0] += (r" \textbf{Detector noise floor:} spike-shift surrogates of the same cells (spatial tuning "
+               rf"destroyed, rate and sampling preserved) yield {nm:.2f} fields per cell, against {om:.2f} "
+               rf"observed; {100 * above:.0f}\% of cells have more fields than their own surrogates.")
+    if nm >= 0.5 * om:
+        out[0] += (" Under the present detection criteria the field count is therefore dominated by firing "
+                   "rate and sampling noise rather than by the number of genuine place fields, and the shape "
+                   "of the distribution below should be read with that in mind.")
+    for grp in ["pooled"] + sorted(g for g in fits["group"].unique() if g != "pooled"):
+        f = fits[fits["group"] == grp].set_index("model")
+        best = f["aic"].idxmin()
+        others = ", ".join(rf"{MODEL_LABELS[m]} $\Delta$AIC $= {f.at[m, 'delta_aic']:.1f}$"
+                           for m in ("lognormal", "gaussian", "negbin", "poisson") if m != best)
+        out.append(rf"\textbf{{{R.esc(grp)}}}: best model by AIC is the {MODEL_LABELS[best]} "
+                   rf"(Akaike weight {f.at[best, 'aic_weight']:.2f}); {others}.")
+    pooled = fits[fits["group"] == "pooled"].sort_values("aic")
+    mu = float(str(pooled.set_index("model").at["gaussian", "params"]).split(";")[0])
+    if mu < 1:
+        out.append(rf"Note on the Gaussian: its maximum-likelihood mean lies below the support "
+                   rf"($\mu = {mu:.0f}$ fields), so only the upper tail of the bell is used and the fit "
+                   r"is close to a geometric decay rather than a symmetric distribution around a typical count.")
+    b = pooled.iloc[0]
+    verdict = ("is not rejected" if b["gof_p"] >= 0.05 else
+               "is itself rejected, so it is the best of the candidates rather than a complete description")
+    p_txt = R.fmt(float(b["gof_p"])).strip("$")
+    out.append(rf"Goodness of fit: the best pooled model ({MODEL_LABELS[b['model']]}) {verdict} "
+               rf"(Pearson $\chi^2_{{{int(b['gof_dof'])}}} = {b['gof_chi2']:.1f}$, $p = {p_txt}$; "
+               r"Table~\ref{tab:field_count:fits}).")
+    text = "\n\n".join(out[:1]) + "\n\n" + r"\begin{itemize}" + "\n" + "\n".join(
+        r"\item " + o for o in out[1:]) + "\n" + r"\end{itemize}" + "\n\n"
+    text += R.table(summ, "Fields per place cell, by rat. Fano = variance/mean ($>1$: over-dispersed "
+                    "relative to Poisson). Surrogate = same cells with circularly shifted spikes.", "tab:field_count:summary",
+                    headers=dict(n_cells="place cells", n_sessions="sessions", var="variance", fano="Fano",
+                                 null_mean="surrogate mean", null_median="surrogate median",
+                                 frac_above_null=r"frac.\ $>$ surrogate"), size=r"\footnotesize")
+    f = fits.assign(model=fits["model"].map(MODEL_LABELS))
+    text += R.table(f, r"Maximum-likelihood fits to the number of fields per place cell ($k\geq1$). "
+                    r"Models are sorted by AIC within each group. "
+                    r"$\chi^2$: Pearson goodness of fit with counts pooled to an expected frequency $\geq5$.",
+                    "tab:field_count:fits",
+                    cols=["group", "model", "n", "n_params", "loglik", "delta_aic", "delta_bic", "aic_weight",
+                          "gof_chi2", "gof_dof", "gof_p"],
+                    headers=dict(n="$n$", n_params="params", loglik=r"$\ln L$",
+                                 delta_aic=r"$\Delta$AIC", delta_bic=r"$\Delta$BIC", aic_weight="weight",
+                                 gof_chi2=r"$\chi^2$", gof_dof="dof", gof_p=r"$p_{\mathrm{GOF}}$"),
+                    digits=4, size=r"\footnotesize")
+    text += R.table(conf, "Dependence of field count on firing rate and training day (Spearman, place cells).",
+                    "tab:field_count:confounds")
+    return text

@@ -12,6 +12,7 @@ Every analysis module defines
 from importlib import import_module
 
 MODULES = (
+    "field_examples",
     "field_count",
     "field_density_usage",
     "goal_coding",
@@ -21,6 +22,7 @@ MODULES = (
     "info_drop",
     "field_size_goal",
     "node_vs_edge",
+    "cell_classes",
 )
 
 

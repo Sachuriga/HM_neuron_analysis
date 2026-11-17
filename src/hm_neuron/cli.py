@@ -4,6 +4,7 @@
   hm analyses                         list analyses
   hm cache [--rat R] [--date D]       pre-load sessions + fields into the local cache
   hm run <analysis|all> [--rat R ...] [--date D ...] [--query "day > 5"] [--no-plot]
+  hm report [analysis ...] [--watch]  LaTeX report; re-runs only analyses whose code changed
 
 Common options: ``--config my.yaml``, ``--out results_dir``.
 """
@@ -44,6 +45,13 @@ def main(argv=None):
         q.add_argument("--rat", nargs="*")
         q.add_argument("--date", nargs="*")
         q.add_argument("--query")
+    r = sub.add_parser("report", help="LaTeX report, rebuilt when code/config/sessions change")
+    r.add_argument("analysis", nargs="*", help="analyses to include (default: all)")
+    r.add_argument("--tex-dir", default="report")
+    r.add_argument("--force", action="store_true", help="re-run even if up to date")
+    r.add_argument("--no-compile", action="store_true", help="write .tex only")
+    r.add_argument("--watch", action="store_true", help="keep running; rebuild on every source change")
+    r.add_argument("--interval", type=float, default=5.0)
     a = p.parse_args(argv)
     cfg = _cfg(a)
 
@@ -77,6 +85,13 @@ def main(argv=None):
         out = Path(cfg.cache_dir) / "session_qc.csv"
         pd.DataFrame(qc).to_csv(out, index=False)
         print("QC table ->", out)
+    elif a.cmd == "report":
+        from . import report
+        if a.watch:
+            args = list(argv if argv is not None else sys.argv[1:])
+            report.watch([x for x in args if x != "--watch"], a.interval)
+        else:
+            report.build(cfg, a.analysis, a.tex_dir, force=a.force, compile=not a.no_compile)
     elif a.cmd == "run":
         names = analyses.MODULES if a.analysis == "all" else [a.analysis]
         failed = []

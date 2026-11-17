@@ -35,7 +35,7 @@ from . import common
 
 NAME = "info_drop"
 TITLE = "Spatial-information drop at goal switch: selectivity vs map coexistence"
-DEFAULT_QUERY = "day > 0"
+DEFAULT_QUERY = "repeat > 0"  # repeat 0 = habituation, not training
 EPS_HZ = 0.05
 
 

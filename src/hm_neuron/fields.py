@@ -233,3 +233,55 @@ def session_fields(s, cfg, refresh=False, lm=None):
     with open(cache, "wb") as fh:
         pickle.dump(out, fh)
     return out
+
+
+def null_fields(s, R, cfg, lm=None, refresh=False):
+    """Field detection on spike-shift surrogates of the session's place cells (cached).
+
+    Each place cell's spikes are circularly shifted within running time
+    (``fields.n_null_maps`` times), which destroys spatial tuning but keeps the
+    spike count, burstiness and the animal's sampling of the maze. Fields are
+    then detected exactly as for the real map. This is the detector's noise
+    floor: what "fields" look like for an untuned cell with the same rate.
+
+    Returns dict with ``units`` (place-cell ids), ``n_fields`` (n_units, n_null),
+    ``peaks`` (n_bins,) = number of surrogate field peaks per bin summed over
+    cells and surrogates, and ``n_null``.
+    """
+    lm = lm or mz.maze_from_cfg(cfg)
+    from .io import CACHE_VERSION
+    cache = Path(cfg.cache_dir) / "null_fields" / f"{s.label}_v{CACHE_VERSION}_{cfg.key('fields+lin+units')}.pkl"
+    if cache.exists() and not refresh:
+        with open(cache, "rb") as fh:
+            return pickle.load(fh)
+    n_null = cfg.fields.n_null_maps
+    pcs = list(R["units"].loc[R["units"]["is_place"], "unit"])
+    mask = running_mask(s, cfg)
+    ms = np.where(mask)[0]
+    n = len(ms)
+    K = smoothing_kernel(lm, cfg.fields.smooth_sigma_m)
+    rng = np.random.default_rng(cfg.fields.seed + 1)
+    min_shift = int(cfg.fields.shuffle_min_shift_s / s.dt)
+    lo, hi = min(min_shift, n // 2), max(n - min_shift, n // 2 + 1)
+    nb = lm.n_bins
+    counts = np.zeros((len(pcs), n_null), int)
+    peaks = np.zeros(nb, int)
+    for k, u in enumerate(pcs):
+        si = spike_samples(s, s.spikes[u])
+        si = si[mask[si]]
+        rank = np.searchsorted(ms, si)
+        sh = rng.integers(lo, hi, n_null)
+        b = s.bin[ms[(rank[None] + sh[:, None]) % n]]
+        cnt = np.bincount((np.arange(n_null)[:, None] * nb + b).ravel(),
+                          minlength=n_null * nb).reshape(n_null, nb)
+        rate, _, _ = smooth_rate(cnt.astype(float), R["occ"], K, cfg.fields.min_occ_s)
+        for j in range(n_null):
+            fd = detect_fields(rate[j], R["valid"], lm, cfg)
+            counts[k, j] = len(fd)
+            for f in fd:
+                peaks[f["peak_bin"]] += 1
+    out = dict(units=np.array(pcs), n_fields=counts, peaks=peaks, n_null=n_null)
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    with open(cache, "wb") as fh:
+        pickle.dump(out, fh)
+    return out

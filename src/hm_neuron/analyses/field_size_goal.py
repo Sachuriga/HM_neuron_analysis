@@ -16,7 +16,7 @@ from . import common
 
 NAME = "field_size_goal"
 TITLE = "Field size vs track distance to goal"
-DEFAULT_QUERY = "day > 0"
+DEFAULT_QUERY = "repeat > 0"  # repeat 0 = habituation, not training
 
 
 def run(sessions, cfg):

@@ -20,7 +20,7 @@ pytest                            # synthetic-data tests, < 5 s
 hm sessions                       # catalog: rat, day, goal, goal block, switch/recall days
 hm analyses                       # list analyses
 hm cache                          # read every NWB once into ~/hm_cache (slow, network volume)
-hm run field_count                # one analysis, all task days (day > 0)
+hm run field_count                # one analysis, all training days (repeat > 0; repeat 0 = habituation)
 hm run all                        # everything -> results/<analysis>/
 hm run theta --rat Rat5 --date 20260709          # one session
 hm run goal_coding --query "block == 2"          # any pandas query on the catalog
@@ -28,7 +28,29 @@ hm --config my.yaml --out results_v2 run all     # override parameters
 ```
 
 Each analysis writes `results/<name>/*.csv` (tidy tables), `<name>.pdf/.png`,
-and `run_info.json` (sessions and the full config used).
+and `run_info.json` (sessions, the full config used, and a code fingerprint).
+
+On Windows the data root is the SMB share: `hm --config config_windows.yaml ...`.
+
+## LaTeX report
+
+```bash
+hm report field_examples field_count field_density_usage   # chosen analyses (default: all)
+hm report --watch field_count                              # keep running, rebuild on every source change
+hm report --force                                          # re-run everything
+```
+
+`hm report` writes `report/main.tex`, one `report/sections/<analysis>.tex` per analysis
+(text, tables and figure captions generated from the result CSVs) and copies the figures to
+`report/figures/`. An analysis is re-run only when its fingerprint changed: a hash of its own
+module, the core modules (`hm_neuron/*.py`, `analyses/common.py`, `data/`), the config and
+the selected sessions. Otherwise the existing results are reused, so a rebuild after an
+unrelated edit takes seconds. The PDF is compiled when `latexmk`, `tectonic` or `pdflatex`
+is on PATH or in the conda env (`conda install -c conda-forge tectonic`); without one,
+`report/` can be uploaded to Overleaf as is.
+
+To put text or tables into an analysis' section, define `latex(tables) -> str` and
+`CAPTIONS = {figure_name: caption}` in its module (see `analyses/field_count.py`).
 
 From Python:
 
@@ -47,8 +69,9 @@ See `notebooks/quickstart.ipynb`.
 
 | `hm run …` | Question |
 |---|---|
-| `field_count` | How many fields does a cell have? Fits ZT-Poisson, ZT-negative binomial, geometric, discretised log-normal and Gaussian, with AIC/BIC per rat |
-| `field_density_usage` | Does field density per node/edge scale with how often it is visited or occupied? Poisson GLM, session-clustered |
+| `field_examples` | How is a field detected? Example cells step by step: spikes on path, rate map, thresholded bins grouped into fields, and the spike-shift surrogate |
+| `field_count` | How many fields does a cell have? Fits ZT-Poisson, ZT-negative binomial, geometric, discretised log-normal and Gaussian, with AIC/BIC and chi-square goodness of fit per rat; compared with spike-shift surrogates |
+| `field_density_usage` | Does field density per node/edge scale with how often it is visited or occupied? Poisson GLM, session-clustered, observed vs spike-shift surrogates |
 | `goal_coding` | Goal-zone enrichment (current and previous goal) over days and within-day thirds, goal cells vs null, and field recruitment lag vs goal distance |
 | `stability` | Visit-to-visit reliability, rate CV, and within-edge profile correlation (same vs opposite direction, vs shifted null, drift with time) |
 | `theta` | Theta/delta power and frequency vs speed; spike-phase MRL, Rayleigh test (FDR) and preferred phase per unit |
@@ -56,6 +79,7 @@ See `notebooks/quickstart.ipynb`.
 | `info_drop` | SI drop on switch days, and whether it reflects poor selectivity (low gain over a flat model) or coexisting early/late maps (bimodal per-spike LLR) |
 | `field_size_goal` | Field size vs track distance to goal, mixed model controlling for peak rate and node location |
 | `node_vs_edge` | More fields on nodes or on edges? Observed vs expected by track length and by occupancy |
+| `cell_classes` | How many goal, start, long-/short-bridge and outside-maze cells per session and across learning? Exact circular-shift test per unit, counts vs matched control locations |
 
 ## Design notes
 

@@ -1,0 +1,2 @@
+# Local paths for the Windows workstation (data on the genzel SMB share)
+data_root: //genzel-srv.science.ru.nl/genzel/Rat/HM/Rat_HM_Neuron

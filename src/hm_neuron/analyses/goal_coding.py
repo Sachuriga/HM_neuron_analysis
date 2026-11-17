@@ -30,7 +30,7 @@ from . import common
 
 NAME = "goal_coding"
 TITLE = "Goal coding over days/trials; recruitment of fields"
-DEFAULT_QUERY = "day > 0"
+DEFAULT_QUERY = "repeat > 0"  # repeat 0 = habituation, not training
 
 
 def _goal_cells(F, R, lm, goal, radius):

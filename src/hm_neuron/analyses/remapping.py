@@ -32,7 +32,7 @@ from . import common
 
 NAME = "remapping"
 TITLE = "Remapping across goals (population maps) with same-goal baseline"
-DEFAULT_QUERY = "day >= 0"
+DEFAULT_QUERY = "repeat > 0"  # repeat 0 = habituation, not training
 PROFILE_EDGES = np.arange(0, 10.5, 0.5)
 
 

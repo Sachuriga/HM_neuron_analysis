@@ -27,7 +27,7 @@ from . import common
 
 NAME = "stability"
 TITLE = "Visit-to-visit consistency of place-cell activity"
-DEFAULT_QUERY = "day > 0"
+DEFAULT_QUERY = "repeat > 0"  # repeat 0 = habituation, not training
 MAX_PAIRS = 60
 
 
