@@ -88,7 +88,8 @@ def test_latex_section_from_tables():
             for ct in cc.CELL_TYPES:
                 r = dict(session_id=f"{rat}_{day}", rat=rat, date=20260600 + day, day=day, goal=107,
                          day_in_block=(day - 1) % 4, is_switch_day=day % 4 == 1, is_recall_day=False,
-                         cell_type=ct, n_units=40, n_gaps=20, n_gaps_timed=19, stay_med_s=45.0, carry_med_s=17.0)
+                         cell_type=ct, n_units=40, n_gaps=20, n_gaps_timed=19, stay_med_s=45.0, carry_med_s=17.0,
+                         speed_run_m_s=0.2, speed_bridge_long_m_s=0.4, speed_bridge_short_m_s=0.3)
                 for c in cc.CLASSES:
                     k = int(rng.integers(0, 12))
                     r.update({f"n_{c}": k, f"frac_{c}": k / 40, f"p_chance_{c}": 0.2})

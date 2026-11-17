@@ -1,0 +1,201 @@
+\section{Goal, start, bridge and outside-maze cells per session}
+\label{sec:cell_classes}
+\noindent\textit{Analysis \texttt{cell\_classes}, 38 sessions, fingerprint \texttt{3be9e7c5cdfa}.}
+
+Every good unit with at least 100 spikes (37 sessions with usable trial timing) was tested for a firing preference for six behavioural states. A unit belongs to a class when its rate in that state is at least 0.5\,Hz and exceeds its reference rate with $p<0.05$ (one-sided) against all circular shifts ($\geq 20$\,s) of its spike train relative to behaviour. Classes are not exclusive, and the test alone admits at most 5\,\% of units.
+\begin{description}\setlength{\itemsep}{0pt}
+\item[Goal] within 0.5\,m track distance of the goal node, against the rest of the maze (running, in trial).
+\item[Start] within 0.5\,m of the start node of the current trial. The start node changes every trial, so this is a position relative to the trial and not a fixed place.
+\item[Long bridge] on the inter-island corridors 121--302, 223--404 (1.9--2.0\,m).
+\item[Short bridge] on the inter-island corridors 124--201, 220--305, 324--401 (0.7\,m).
+\item[Outside maze] while the rat is off the maze (carried from the goal to the next start, and before the first and after the last trial), against all in-trial time.
+\item[At goal after arrival] from goal arrival until the rat is picked up, against all in-trial time.
+\end{description}
+The rat's own track is frozen between trials. The pick-up was therefore timed from the researcher track, as the last moment at which the researcher was within 1.5\,m of where the rat ended the trial (96\,\% of inter-trial gaps could be timed). The rat stayed at the goal for a median of 47\,s and was then carried for 18\,s, so ``between trials'' is mostly time at the goal; it is listed as its own class and is not part of the outside-maze class. All states are restricted to the span of the spike record.
+
+\begin{itemize}\setlength{\itemsep}{0pt}
+\item \textbf{Goal}: 359 of 2{,}482 pyramidal units (14.5\,\%); above the 5\,\% chance level in 32 of 37 sessions; control locations give 11.4\,\% (Wilcoxon across sessions, $p = 0.00404$).
+\item \textbf{Start}: 306 of 2{,}482 pyramidal units (12.3\,\%); above the 5\,\% chance level in 22 of 37 sessions.
+\item \textbf{Long bridge}: 426 of 2{,}482 pyramidal units (17.2\,\%); above the 5\,\% chance level in 34 of 37 sessions; control locations give 10.7\,\% (Wilcoxon across sessions, $p = 3.41\times10^{-7}$).
+\item \textbf{Short bridge}: 337 of 2{,}482 pyramidal units (13.6\,\%); above the 5\,\% chance level in 26 of 37 sessions; control locations give 9.3\,\% (Wilcoxon across sessions, $p = 4.70\times10^{-6}$).
+\item \textbf{Outside maze}: 398 of 2{,}482 pyramidal units (16.0\,\%); above the 5\,\% chance level in 31 of 37 sessions.
+\item \textbf{At goal after arrival}: 259 of 2{,}482 pyramidal units (10.4\,\%); above the 5\,\% chance level in 18 of 37 sessions.
+\end{itemize}
+
+A spatially tuned population yields cells of this kind for any location, which is why goal and bridge counts are compared with control locations of similar running occupancy (zones around other nodes; random sets of within-island corridors of the same total length). The controls are not matched for running speed: the median was 0.52\,m/s on long bridges and 0.40\,m/s on short bridges, against 0.23\,m/s over the whole maze. Start cells have no location control because the start zone moves with the trial. The outside-maze and at-goal classes contrast behavioural states that also differ in movement (carried or eating against running and pausing on the maze), so they describe when a unit fires and not what it encodes.
+
+Of the 24 per-rat rank correlations between the fraction of cells and training (Table~\ref{tab:cell_classes:trends}), 3 reach $p<0.05$ uncorrected: short bridge cells in Rat5 against training day ($\rho = -0.50$, $p = 0.0347$); start cells in Rat6 against day within the goal block ($\rho = 0.49$, $p = 0.0324$); outside maze cells in Rat6 against training day ($\rho = 0.48$, $p = 0.036$). With 24 tests, 1.2 would be expected by chance alone, and no class changes in the same direction in both rats. 
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Rat5: number of good pyramidal units in each class per session (percentage of the units tested). Classes are not exclusive; ``any bridge'' pools the five corridors and is not the sum of long and short.}
+\label{tab:cell_classes:Rat5}
+\begin{tabular}{rlrlllllll}
+\toprule
+day & goal node & units & goal & start & long bridge & short bridge & any bridge & outside maze & at goal \\
+\midrule
+1 & 410 & 48 & 4 (8\%) & 4 (8\%) & 8 (17\%) & 8 (17\%) & 10 (21\%) & 12 (25\%) & 3 (6\%) \\
+3 & 410 & 45 & 6 (13\%) & 5 (11\%) & 7 (16\%) & 4 (9\%) & 9 (20\%) & 7 (16\%) & 7 (16\%) \\
+4 & 410 & 60 & 13 (22\%) & 11 (18\%) & 15 (25\%) & 9 (15\%) & 17 (28\%) & 12 (20\%) & 7 (12\%) \\
+5 & 410 & 52 & 7 (13\%) & 8 (15\%) & 12 (23\%) & 6 (12\%) & 11 (21\%) & 6 (12\%) & 7 (13\%) \\
+6 & 314 & 48 & 7 (15\%) & 6 (12\%) & 9 (19\%) & 9 (19\%) & 6 (12\%) & 10 (21\%) & 7 (15\%) \\
+7 & 314 & 39 & 6 (15\%) & 5 (13\%) & 6 (15\%) & 5 (13\%) & 7 (18\%) & 7 (18\%) & 4 (10\%) \\
+8 & 314 & 64 & 8 (12\%) & 11 (17\%) & 5 (8\%) & 9 (14\%) & 7 (11\%) & 9 (14\%) & 5 (8\%) \\
+9 & 314 & 84 & 3 (4\%) & 9 (11\%) & 11 (13\%) & 14 (17\%) & 13 (15\%) & 13 (15\%) & 8 (10\%) \\
+10 & 314 & 104 & 14 (13\%) & 19 (18\%) & 18 (17\%) & 15 (14\%) & 16 (15\%) & 12 (12\%) & 10 (10\%) \\
+11 & 107 & 65 & 9 (14\%) & 16 (25\%) & 10 (15\%) & 11 (17\%) & 12 (18\%) & 9 (14\%) & 11 (17\%) \\
+12 & 107 & 84 & 10 (12\%) & 10 (12\%) & 10 (12\%) & 9 (11\%) & 14 (17\%) & 18 (21\%) & 18 (21\%) \\
+13 & 107 & 86 & 9 (10\%) & 6 (7\%) & 15 (17\%) & 9 (10\%) & 15 (17\%) & 14 (16\%) & 14 (16\%) \\
+14 & 107 & 58 & 6 (10\%) & 9 (16\%) & 11 (19\%) & 5 (9\%) & 12 (21\%) & 12 (21\%) & 8 (14\%) \\
+15 & 107 & 60 & 8 (13\%) & 8 (13\%) & 10 (17\%) & 8 (13\%) & 11 (18\%) & 15 (25\%) & 12 (20\%) \\
+16 & 219 & 44 & 6 (14\%) & 7 (16\%) & 5 (11\%) & 3 (7\%) & 5 (11\%) & 5 (11\%) & 5 (11\%) \\
+17 & 219 & 76 & 12 (16\%) & 11 (14\%) & 11 (14\%) & 7 (9\%) & 11 (14\%) & 18 (24\%) & 12 (16\%) \\
+18 & 219 & 59 & 8 (14\%) & 13 (22\%) & 9 (15\%) & 8 (14\%) & 10 (17\%) & 9 (15\%) & 9 (15\%) \\
+19 & 219 & 71 & 9 (13\%) & 13 (18\%) & 10 (14\%) & 6 (8\%) & 9 (13\%) & 10 (14\%) & 10 (14\%) \\
+\bottomrule
+\end{tabular}
+\end{table}
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Rat6: number of good pyramidal units in each class per session (percentage of the units tested). Classes are not exclusive; ``any bridge'' pools the five corridors and is not the sum of long and short.}
+\label{tab:cell_classes:Rat6}
+\begin{tabular}{rlrlllllll}
+\toprule
+day & goal node & units & goal & start & long bridge & short bridge & any bridge & outside maze & at goal \\
+\midrule
+1 & 204 & 83 & 11 (13\%) & 3 (4\%) & 17 (20\%) & 7 (8\%) & 16 (19\%) & 7 (8\%) & 3 (4\%) \\
+2 & 204 & 57 & 7 (12\%) & 8 (14\%) & 15 (26\%) & 14 (25\%) & 20 (35\%) & 1 (2\%) & 2 (4\%) \\
+3 & 204 & 77 & 12 (16\%) & 6 (8\%) & 14 (18\%) & 14 (18\%) & 14 (18\%) & 7 (9\%) & 3 (4\%) \\
+4 & 204 & 53 & 8 (15\%) & 5 (9\%) & 13 (25\%) & 9 (17\%) & 13 (25\%) & 7 (13\%) & 7 (13\%) \\
+5 & 204 & 66 & 18 (27\%) & 6 (9\%) & 10 (15\%) & 9 (14\%) & 10 (15\%) & 12 (18\%) & 5 (8\%) \\
+6 & 109 & 42 & 11 (26\%) & 3 (7\%) & 4 (10\%) & 9 (21\%) & 7 (17\%) & 8 (19\%) & 4 (10\%) \\
+7 & 109 & 47 & 8 (17\%) & 5 (11\%) & 8 (17\%) & 5 (11\%) & 6 (13\%) & 3 (6\%) & 2 (4\%) \\
+8 & 109 & 40 & 4 (10\%) & 3 (8\%) & 10 (25\%) & 7 (18\%) & 9 (22\%) & 7 (18\%) & 5 (12\%) \\
+9 & 109 & 64 & 7 (11\%) & 7 (11\%) & 15 (23\%) & 13 (20\%) & 14 (22\%) & 7 (11\%) & 1 (2\%) \\
+10 & 109 & 86 & 11 (13\%) & 9 (10\%) & 15 (17\%) & 8 (9\%) & 16 (19\%) & 10 (12\%) & 6 (7\%) \\
+11 & 318 & 86 & 18 (21\%) & 4 (5\%) & 12 (14\%) & 8 (9\%) & 12 (14\%) & 21 (24\%) & 9 (10\%) \\
+12 & 318 & 82 & 19 (23\%) & 18 (22\%) & 10 (12\%) & 17 (21\%) & 12 (15\%) & 11 (13\%) & 9 (11\%) \\
+13 & 318 & 36 & 6 (17\%) & 2 (6\%) & 5 (14\%) & 3 (8\%) & 2 (6\%) & 4 (11\%) & 2 (6\%) \\
+14 & 318 & 98 & 19 (19\%) & 12 (12\%) & 12 (12\%) & 14 (14\%) & 17 (17\%) & 17 (17\%) & 12 (12\%) \\
+15 & 318 & 90 & 14 (16\%) & 17 (19\%) & 12 (13\%) & 19 (21\%) & 16 (18\%) & 19 (21\%) & 7 (8\%) \\
+16 & 421 & 63 & 13 (21\%) & 3 (5\%) & 14 (22\%) & 9 (14\%) & 17 (27\%) & 7 (11\%) & 6 (10\%) \\
+17 & 421 & 74 & 7 (9\%) & 2 (3\%) & 19 (26\%) & 9 (12\%) & 22 (30\%) & 11 (15\%) & 7 (9\%) \\
+18 & 421 & 95 & 10 (11\%) & 14 (15\%) & 23 (24\%) & 11 (12\%) & 20 (21\%) & 25 (26\%) & 6 (6\%) \\
+19 & 421 & 96 & 11 (11\%) & 8 (8\%) & 16 (17\%) & 7 (7\%) & 15 (16\%) & 16 (17\%) & 6 (6\%) \\
+\bottomrule
+\end{tabular}
+\end{table}
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Cell classes pooled over sessions. \%: of all units tested; session mean and SD of the per-session percentage; above chance: sessions whose count exceeds the 5\,\% expected from the test (binomial, $p<0.05$); control: same test at matched control locations; $p$: Wilcoxon signed-rank across sessions, observed against control count.}
+\label{tab:cell_classes:summary}
+\begin{tabular}{lllrrrrrrrrr}
+\toprule
+cell type & rat & class & sessions & units & cells & \% & mean \% & SD \% & above chance & control \% & $p$ \\
+\midrule
+pyramidal & pooled & goal & 37 & 2{,}482 & 359 & 14.5 & 14.6 & 4.86 & 32 & 11.4 & 0.00404 \\
+pyramidal & pooled & start & 37 & 2{,}482 & 306 & 12.3 & 12.2 & 5.4 & 22 & -- & -- \\
+pyramidal & pooled & long bridge & 37 & 2{,}482 & 426 & 17.2 & 17.3 & 4.84 & 34 & 10.7 & $3.41\times10^{-7}$ \\
+pyramidal & pooled & short bridge & 37 & 2{,}482 & 337 & 13.6 & 13.7 & 4.56 & 26 & 9.33 & $4.70\times10^{-6}$ \\
+pyramidal & pooled & outside maze & 37 & 2{,}482 & 398 & 16 & 15.8 & 5.58 & 31 & -- & -- \\
+pyramidal & pooled & at goal after arrival & 37 & 2{,}482 & 259 & 10.4 & 10.5 & 4.72 & 18 & -- & -- \\
+pyramidal & Rat5 & goal & 18 & 1{,}147 & 145 & 12.6 & 12.9 & 3.59 & 15 & 9.83 & 0.0166 \\
+pyramidal & Rat5 & start & 18 & 1{,}147 & 171 & 14.9 & 14.9 & 4.51 & 15 & -- & -- \\
+pyramidal & Rat5 & long bridge & 18 & 1{,}147 & 182 & 15.9 & 16 & 4.01 & 16 & 10.2 & $4.04\times10^{-4}$ \\
+pyramidal & Rat5 & short bridge & 18 & 1{,}147 & 145 & 12.6 & 12.6 & 3.46 & 13 & 8.54 & $3.31\times10^{-4}$ \\
+pyramidal & Rat5 & outside maze & 18 & 1{,}147 & 198 & 17.3 & 17.4 & 4.56 & 17 & -- & -- \\
+pyramidal & Rat5 & at goal after arrival & 18 & 1{,}147 & 157 & 13.7 & 13.5 & 4.01 & 13 & -- & -- \\
+pyramidal & Rat6 & goal & 19 & 1{,}335 & 214 & 16 & 16.2 & 5.42 & 17 & 12.9 & 0.132 \\
+pyramidal & Rat6 & start & 19 & 1{,}335 & 135 & 10.1 & 9.71 & 5.05 & 7 & -- & -- \\
+pyramidal & Rat6 & long bridge & 19 & 1{,}335 & 244 & 18.3 & 18.5 & 5.33 & 18 & 11.2 & $2.10\times10^{-4}$ \\
+pyramidal & Rat6 & short bridge & 19 & 1{,}335 & 192 & 14.4 & 14.7 & 5.29 & 13 & 10 & 0.00318 \\
+pyramidal & Rat6 & outside maze & 19 & 1{,}335 & 200 & 15 & 14.3 & 6.14 & 14 & -- & -- \\
+pyramidal & Rat6 & at goal after arrival & 19 & 1{,}335 & 102 & 7.64 & 7.64 & 3.41 & 5 & -- & -- \\
+interneuron & pooled & goal & 37 & 830 & 140 & 16.9 & 17.6 & 11.5 & 20 & 8.81 & $1.31\times10^{-4}$ \\
+interneuron & pooled & start & 37 & 830 & 202 & 24.3 & 23.3 & 13.6 & 24 & -- & -- \\
+interneuron & pooled & long bridge & 37 & 830 & 254 & 30.6 & 30 & 11 & 33 & 13.7 & $3.61\times10^{-7}$ \\
+interneuron & pooled & short bridge & 37 & 830 & 215 & 25.9 & 24 & 13.5 & 26 & 11.6 & $6.75\times10^{-6}$ \\
+interneuron & pooled & outside maze & 37 & 830 & 314 & 37.8 & 36.1 & 14.8 & 32 & -- & -- \\
+interneuron & pooled & at goal after arrival & 37 & 830 & 38 & 4.58 & 5.47 & 7.18 & 2 & -- & -- \\
+interneuron & Rat5 & goal & 18 & 475 & 53 & 11.2 & 11.5 & 7.37 & 6 & 7.57 & 0.158 \\
+interneuron & Rat5 & start & 18 & 475 & 147 & 30.9 & 31.3 & 10.8 & 17 & -- & -- \\
+interneuron & Rat5 & long bridge & 18 & 475 & 161 & 33.9 & 34.1 & 8.85 & 18 & 13.8 & $1.90\times10^{-4}$ \\
+interneuron & Rat5 & short bridge & 18 & 475 & 152 & 32 & 32.3 & 11.1 & 17 & 11.5 & $1.92\times10^{-4}$ \\
+interneuron & Rat5 & outside maze & 18 & 475 & 218 & 45.9 & 45.6 & 11.9 & 17 & -- & -- \\
+interneuron & Rat5 & at goal after arrival & 18 & 475 & 16 & 3.37 & 3.16 & 4.39 & 1 & -- & -- \\
+interneuron & Rat6 & goal & 19 & 355 & 87 & 24.5 & 23.4 & 11.8 & 14 & 10.5 & $7.56\times10^{-4}$ \\
+interneuron & Rat6 & start & 19 & 355 & 55 & 15.5 & 15.6 & 11.6 & 7 & -- & -- \\
+interneuron & Rat6 & long bridge & 19 & 355 & 93 & 26.2 & 26.1 & 11.6 & 15 & 13.7 & $6.19\times10^{-4}$ \\
+interneuron & Rat6 & short bridge & 19 & 355 & 63 & 17.7 & 16.1 & 10.7 & 9 & 11.8 & 0.0368 \\
+interneuron & Rat6 & outside maze & 19 & 355 & 96 & 27 & 27.1 & 11.4 & 15 & -- & -- \\
+interneuron & Rat6 & at goal after arrival & 19 & 355 & 22 & 6.2 & 7.66 & 8.64 & 1 & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Change with learning: Spearman correlation across sessions between the fraction of pyramidal units in a class and training day, or day since the last goal switch. Uncorrected $p$-values.}
+\label{tab:cell_classes:trends}
+\begin{tabular}{lllrrr}
+\toprule
+rat & class & against & $\rho$ & $p$ & sessions \\
+\midrule
+pooled & goal & training day & -0.105 & 0.535 & 37 \\
+pooled & goal & day in goal block & -0.125 & 0.461 & 37 \\
+pooled & start & training day & 0.217 & 0.198 & 37 \\
+pooled & start & day in goal block & 0.257 & 0.124 & 37 \\
+pooled & long bridge & training day & -0.253 & 0.131 & 37 \\
+pooled & long bridge & day in goal block & 0.113 & 0.506 & 37 \\
+pooled & short bridge & training day & -0.383 & 0.0195 & 37 \\
+pooled & short bridge & day in goal block & -0.0167 & 0.922 & 37 \\
+pooled & outside maze & training day & 0.224 & 0.182 & 37 \\
+pooled & outside maze & day in goal block & 0.0311 & 0.855 & 37 \\
+pooled & at goal after arrival & training day & 0.275 & 0.0996 & 37 \\
+pooled & at goal after arrival & day in goal block & 0.0176 & 0.918 & 37 \\
+Rat5 & goal & training day & 0.00826 & 0.974 & 18 \\
+Rat5 & goal & day in goal block & -0.219 & 0.383 & 18 \\
+Rat5 & start & training day & 0.354 & 0.15 & 18 \\
+Rat5 & start & day in goal block & 0.17 & 0.501 & 18 \\
+Rat5 & long bridge & training day & -0.411 & 0.0901 & 18 \\
+Rat5 & long bridge & day in goal block & 0.344 & 0.163 & 18 \\
+Rat5 & short bridge & training day & -0.5 & 0.0347 & 18 \\
+Rat5 & short bridge & day in goal block & -0.134 & 0.597 & 18 \\
+Rat5 & outside maze & training day & -0.1 & 0.692 & 18 \\
+Rat5 & outside maze & day in goal block & -0.164 & 0.516 & 18 \\
+Rat5 & at goal after arrival & training day & 0.424 & 0.0794 & 18 \\
+Rat5 & at goal after arrival & day in goal block & -0.0716 & 0.778 & 18 \\
+Rat6 & goal & training day & -0.188 & 0.442 & 19 \\
+Rat6 & goal & day in goal block & -0.199 & 0.415 & 19 \\
+Rat6 & start & training day & 0.0789 & 0.748 & 19 \\
+Rat6 & start & day in goal block & 0.492 & 0.0324 & 19 \\
+Rat6 & long bridge & training day & -0.165 & 0.5 & 19 \\
+Rat6 & long bridge & day in goal block & -0.0564 & 0.819 & 19 \\
+Rat6 & short bridge & training day & -0.301 & 0.21 & 19 \\
+Rat6 & short bridge & day in goal block & -0.0112 & 0.964 & 19 \\
+Rat6 & outside maze & training day & 0.484 & 0.036 & 19 \\
+Rat6 & outside maze & day in goal block & 0.192 & 0.432 & 19 \\
+Rat6 & at goal after arrival & training day & 0.244 & 0.314 & 19 \\
+Rat6 & at goal after arrival & day in goal block & -0.00716 & 0.977 & 19 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{cell_classes__cell_classes.pdf}
+\caption{\textbf{Cell classes across training days} (good pyramidal units). One line per rat; dotted lines: the same test at control locations with similar running occupancy (other nodes for the goal, random within-island corridors of the same length for the bridges). Dashed black line: the 5\,\% expected from the test alone. Grey vertical lines: first day with a new goal. Classes are not exclusive.}
+\label{fig:cell_classes}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{cell_classes__cell_classes_zones.pdf}
+\caption{\textbf{Long and short bridges.} The five corridors that join two islands, split at 1\,m: two long ones (red) and three short ones (blue). Node zones are not part of a bridge.}
+\label{fig:cell_classes_zones}
+\end{figure}
+
+\clearpage

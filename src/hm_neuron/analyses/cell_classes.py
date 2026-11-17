@@ -371,6 +371,8 @@ def classify_session(s, cfg, lm, res=None):
     U["n_classes"] = U[[f"is_{c}" for c in CLASSES if c != "bridge"]].sum(1)
     Z["T"] = dict(run=T_run, maze=Z["maze"].sum() * s.dt,
                   **{c: Z[c].sum() * s.dt for c in CLASSES})
+    Z["speed"] = {c: float(np.nanmedian(s.speed[Z[c]])) if Z[c].any() else np.nan
+                  for c in ("run",) + SPATIAL}
     return U[keep].reset_index(drop=True), is_sp[keep][:, len(SPATIAL):], ctrl_lab, Z
 
 
@@ -380,6 +382,7 @@ def _session_rows(meta, U, ctrl_is, ctrl_lab, Z, alpha):
     timed = picks[np.isfinite(picks["t_pick"])] if picks is not None and len(picks) else None
     gaps = timed[np.isfinite(timed["t_next"])] if timed is not None else None
     base = dict(**meta, **{f"T_{k}_s": round(float(v), 1) for k, v in Z["T"].items()},
+                **{f"speed_{k}_m_s": v for k, v in Z["speed"].items()},
                 n_gaps=0 if picks is None else int(np.isfinite(picks["t_next"]).sum()),
                 n_gaps_timed=0 if gaps is None else len(gaps),
                 stay_med_s=float((gaps["t_pick"] - gaps["t_end"]).median()) if gaps is not None and len(gaps) else np.nan,
@@ -544,12 +547,18 @@ def latex(T):
     SES, SUM, TR, ZN = T["sessions"], T["summary"], T["trends"], T["zones"]
     pyr = SES[SES["cell_type"] == "pyramidal"]
     edges = {k: ", ".join(R.esc(e.replace("-", "–")) for e in g["edge"]) for k, g in ZN.groupby("cls")}
-    rng_m = {k: (g["length_m"].min(), g["length_m"].max()) for k, g in ZN.groupby("cls")}
+    rng_m = {}
+    for k, g in ZN.groupby("cls"):
+        lo, hi = f"{g['length_m'].min():.1f}", f"{g['length_m'].max():.1f}"
+        rng_m[k] = lo if lo == hi else f"{lo}--{hi}"
+    n_ses = pyr["session_id"].nunique()
+    spd = {k: pyr[f"speed_{k}_m_s"].median() for k in ("run", "bridge_long", "bridge_short")
+           if f"speed_{k}_m_s" in pyr}
     stay, carry = pyr["stay_med_s"].median(), pyr["carry_med_s"].median()
     timed = pyr["n_gaps_timed"].sum() / max(pyr["n_gaps"].sum(), 1)
     text = (
-        r"Every good unit with at least 100 spikes was tested for a firing preference for six "
-        r"behavioural states. A unit belongs to a class when its rate in that state is at least "
+        rf"Every good unit with at least 100 spikes ({n_ses} sessions with usable trial timing) was "
+        r"tested for a firing preference for six behavioural states. A unit belongs to a class when its rate in that state is at least "
         r"0.5\,Hz and exceeds its reference rate with $p<0.05$ (one-sided) against all circular "
         r"shifts ($\geq 20$\,s) of its spike train relative to behaviour. Classes are not exclusive, "
         r"and the test alone admits at most 5\,\% of units." "\n"
@@ -559,9 +568,9 @@ def latex(T):
         r"\item[Start] within 0.5\,m of the start node of the current trial. The start node changes "
         r"every trial, so this is a position relative to the trial and not a fixed place." "\n"
         rf"\item[Long bridge] on the inter-island corridors {edges.get('bridge_long', '--')} "
-        rf"({rng_m['bridge_long'][0]:.1f}--{rng_m['bridge_long'][1]:.1f}\,m)." "\n"
+        rf"({rng_m.get('bridge_long', '--')}\,m)." "\n"
         rf"\item[Short bridge] on the inter-island corridors {edges.get('bridge_short', '--')} "
-        rf"({rng_m['bridge_short'][0]:.1f}--{rng_m['bridge_short'][1]:.1f}\,m)." "\n"
+        rf"({rng_m.get('bridge_short', '--')}\,m)." "\n"
         r"\item[Outside maze] while the rat is off the maze (carried from the goal to the next start, "
         r"and before the first and after the last trial), against all in-trial time." "\n"
         r"\item[At goal after arrival] from goal arrival until the rat is picked up, against all "
@@ -592,6 +601,17 @@ def latex(T):
     if items:
         text += (r"\begin{itemize}\setlength{\itemsep}{0pt}" "\n" + "\n".join(r"\item " + i for i in items)
                  + "\n" r"\end{itemize}" "\n\n")
+    text += (r"A spatially tuned population yields cells of this kind for any location, which is why goal "
+             r"and bridge counts are compared with control locations of similar running occupancy (zones "
+             r"around other nodes; random sets of within-island corridors of the same total length). ")
+    if len(spd) == 3 and all(pd.notna(v) for v in spd.values()):
+        text += (r"The controls are not matched for running speed: the median was "
+                 rf"{spd['bridge_long']:.2f}\,m/s on long bridges and {spd['bridge_short']:.2f}\,m/s on short "
+                 rf"bridges, against {spd['run']:.2f}\,m/s over the whole maze. ")
+    text += (r"Start cells have no location control because the start zone moves with the trial. "
+             r"The outside-maze and at-goal classes contrast behavioural states that also differ in "
+             r"movement (carried or eating against running and pausing on the maze), so they describe "
+             r"when a unit fires and not what it encodes." "\n\n")
 
     t = TR[(TR["cell_type"] == "pyramidal") & (TR["group"] != "pooled") & TR["cls"].isin(PANELS)]
     sig = t[t["p"] < 0.05]

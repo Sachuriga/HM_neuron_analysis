@@ -39,6 +39,22 @@ phase gives 0 at the theta peak. Phase locking is measured as MRL, with a bias-c
 Enrichment = (fraction of field peaks in the zone) / (fraction of valid track length
 in the zone).
 
+**Cell classes** (`cell_classes`). Every good unit with ≥ 100 spikes is tested for a firing
+preference for each state; classes are not exclusive. Spatial classes use in-trial running
+samples and compare the zone with the rest of the maze: *goal* (≤ 0.5 m track distance from
+the goal node), *start* (≤ 0.5 m from the start node of the current trial), *long bridge*
+(inter-island corridors > 1 m: 121–302, 223–404) and *short bridge* (124–201, 220–305,
+324–401). Temporal classes compare with all in-trial time: *outside maze* (rat carried from
+the goal to the next start, plus before the first and after the last trial) and *at goal after
+arrival* (goal arrival until pick-up). The rat's track is frozen between trials, so the
+pick-up is the last moment the tracked researcher was within 1.5 m of where the rat ended the
+trial. A unit is in a class when its rate in the state is ≥ 0.5 Hz and exceeds the reference
+with p < 0.05 against every circular shift (≥ 20 s) of its spike train relative to behaviour
+(exact, computed by FFT cross-correlation). Goal and bridge counts are compared with control
+locations of similar running occupancy (0.5–2×): zones around other nodes, and random sets of
+within-island corridors of the same total length. All states are restricted to the span of
+the spike record.
+
 **Day types.** A switch day is the first day with a new goal (days 1, 6, 11, 16). A recall day
 is Session 1 of a Repeat, the last day with the old goal (days 5, 10, 15). Day 0 is a
 single free-exploration trial with goal 101 and is excluded by default.
