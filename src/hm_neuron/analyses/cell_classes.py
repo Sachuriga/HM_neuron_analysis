@@ -601,6 +601,7 @@ def _plot_rasters(EX, cfg):
                 a.vlines(x, row - 0.4, row + 0.4, color="k", lw=0.35)
             a.axvline(0, color="k", lw=0.5, ls=":")
             a.set(xlim=(w0, w1), ylim=(-0.5, max(len(ev), 1) - 0.5))
+            a.yaxis.set_major_locator(P.plt.MaxNLocator(4, integer=True))
             a.set_title(f"{e['rat']} {e['gl']} (goal {int(e['goal'])}), unit {int(e['unit'])}\n"
                         f"{e['rate']:.1f} vs {e['rate_ref']:.1f} Hz", fontsize=6)
             a.set_xlabel(f"time from {event} (s)")
