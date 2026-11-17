@@ -487,8 +487,6 @@ def run(sessions, cfg):
 # ----------------------------------------------------------------------------- plots
 PANELS = ("goal", "start", "outside", "bridge_long", "bridge_short", "reward")
 BLOCK_GAP = 0.8            # x gap between goal blocks, in sessions
-TINT = {"goal": "#f7c6a3", "start": "#b9e3b0", "bridge_long": "#f2b8b8", "bridge_short": "#b8c8f2",
-        "bridge": "#d5c0e0", "outside": "#d9c7ec", "reward": "#f5e3a0"}
 # class -> (event the raster is aligned to, window in s, what a row is)
 RASTER = {"goal": ("goal arrival", (-10.0, 3.0), "trial"),
           "start": ("trial start", (-2.0, 10.0), "trial"),
@@ -496,7 +494,6 @@ RASTER = {"goal": ("goal arrival", (-10.0, 3.0), "trial"),
           "bridge_short": ("bridge entry", (-4.0, 6.0), "traversal"),
           "outside": ("pick-up", (-20.0, 25.0), "gap"),
           "reward": ("goal arrival", (-10.0, 60.0), "trial")}
-RASTER_DT = 0.05
 
 
 def gl_label(block, day_in_block) -> str:
@@ -557,32 +554,23 @@ def raster_events(s, Z, lm, cls) -> np.ndarray:
 
 
 def raster_data(s, Z, lm, cls, unit):
-    """(events, state (n_events, n_bins): 2 = defining state, 1 = reference, 0 = unused,
-    spike_x, spike_row) for the raster of `unit`."""
+    """(events, spike time relative to its event, row of each spike) for the raster of `unit`."""
     _, (w0, w1), _ = RASTER[cls]
     ev = raster_events(s, Z, lm, cls)
-    tau = np.arange(w0, w1, RASTER_DT) + RASTER_DT / 2
-    tt = ev[:, None] + tau[None]
-    i = np.clip(np.searchsorted(s.t, tt), 0, len(s.t) - 1)
-    ref = Z["maze"] if cls in TEMPORAL else Z["run"]
-    state = np.where(Z[cls][i], 2, np.where(ref[i], 1, 0))
-    state[(tt < Z["span"][0]) | (tt > Z["span"][1])] = 0
     spk = np.sort(s.spikes[unit])
     a, b = np.searchsorted(spk, ev + w0), np.searchsorted(spk, ev + w1)
     x = np.concatenate([spk[i0:i1] - e for i0, i1, e in zip(a, b, ev)]) if len(ev) else np.array([])
     row = np.repeat(np.arange(len(ev)), b - a) if len(ev) else np.array([], int)
-    return ev, state, x, row
+    return ev, x, row
 
 
 def _plot_rasters(EX, cfg):
-    from matplotlib.colors import ListedColormap
     lm = mz.maze_from_cfg(cfg)
     ncol = int(EX.groupby("cls").size().max())
     fig, ax = P.figure(180, 215, nrows=len(PANELS), ncols=ncol, squeeze=False)
     cache = {}
     for r, c in enumerate(PANELS):
         event, (w0, w1), rowname = RASTER[c]
-        cm = ListedColormap(["white", "0.9", TINT[c]])
         ex = EX[EX["cls"] == c].sort_values("rank")
         for k in range(ncol):
             a = ax[r, k]
@@ -594,12 +582,10 @@ def _plot_rasters(EX, cfg):
                 s = io.load_session(cfg, e["rat"], str(e["date"]))
                 cache[e["session_id"]] = (s, label_states(s, cfg, lm, researcher_track(s, cfg)))
             s, Z = cache[e["session_id"]]
-            ev, state, x, row = raster_data(s, Z, lm, c, int(e["unit"]))
+            ev, x, row = raster_data(s, Z, lm, c, int(e["unit"]))
             if len(ev):
-                a.imshow(state, cmap=cm, vmin=0, vmax=2, aspect="auto", origin="lower",
-                         interpolation="nearest", extent=(w0, w1, -0.5, len(ev) - 0.5))
                 a.vlines(x, row - 0.4, row + 0.4, color="k", lw=0.35)
-            a.axvline(0, color="k", lw=0.5, ls=":")
+            a.axvline(0, color="#d62728", lw=0.6)
             a.set(xlim=(w0, w1), ylim=(-0.5, max(len(ev), 1) - 0.5))
             a.yaxis.set_major_locator(P.plt.MaxNLocator(4, integer=True))
             a.set_title(f"{e['rat']} {e['gl']} (goal {int(e['goal'])}), unit {int(e['unit'])}\n"
@@ -668,12 +654,9 @@ CAPTIONS = {
         r"broken and separated by a grey line at every goal switch. Classes are not exclusive."),
     "cell_classes_rasters": (
         r"\textbf{Example units of each class} (rows of panels), three per class. Each line of a raster "
-        r"is one trial, bridge traversal or inter-trial gap, aligned to the event on the $x$-axis; black "
-        r"ticks are spikes. Coloured background: the samples that define the class (the state); grey: the "
-        r"samples it is compared with (the reference); white: not used. For the goal, start and bridge "
-        r"classes only running samples count, so pauses are white. A unit is in the class when it fires "
-        r"more on the coloured than on the grey background. Title: session, goal node, unit, and rate in "
-        r"the state against the reference rate. Examples are the members with the largest rate ratio "
+        r"is one trial, bridge traversal or inter-trial gap, aligned to the event on the $x$-axis (red "
+        r"line); black ticks are spikes. Title: session, goal node, unit, and rate in the state against "
+        r"the reference rate. Examples are the members with the largest rate ratio "
         r"among those firing at least 2\,Hz in the state (best of each rat first, one unit per session), "
         r"so they show the clearest cases and not typical ones."),
     "cell_classes_zones": (
@@ -742,8 +725,8 @@ def latex(T):
         rf"The rat stayed at the goal for a median of {stay:.0f}\,s and was then carried for "
         rf"{carry:.0f}\,s, so ``between trials'' is mostly time at the goal; it is listed as its own "
         r"class and is not part of the outside-maze class. All states are restricted to the span of "
-        r"the spike record. Figure~\ref{fig:cell_classes_rasters} shows example units of every class "
-        r"with the samples that define it. Sessions are labelled GL$n$S$x$, the $x$-th session with "
+        r"the spike record. Figure~\ref{fig:cell_classes_rasters} shows example units of every class. "
+        r"Sessions are labelled GL$n$S$x$, the $x$-th session with "
         r"the $n$-th goal location, so the last session of a goal is the recall day before the switch." "\n\n")
 
     P_ = SUM[(SUM["cell_type"] == "pyramidal") & (SUM["group"] == "pooled")].set_index("cls")

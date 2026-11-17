@@ -41,7 +41,8 @@ def run(sessions, cfg):
         g["n_peaks"] = g["element"].map(npk).fillna(0).astype(int)
         g["kind"] = np.where(g["element"].str.startswith("N"), "node", "edge")
         g["n_place_cells"] = int(R["units"]["is_place"].sum())
-        g = g.assign(session_id=common.session_id(row), rat=row["rat"], day=row["day"])
+        g = g.assign(session_id=common.session_id(row), rat=row["rat"], day=row["day"],
+                     session=common.gl_label(row["block"], row["day_in_block"]))
         rows.append(g)
     E = pd.concat(rows, ignore_index=True)
     E = E[(E["valid_frac"] > 0.5) & (E["visits"] > 0)].copy()
@@ -77,7 +78,7 @@ def run(sessions, cfg):
         a = S.spearman(g["visits"].to_numpy(float), g["density_per_m"].to_numpy())
         b = S.spearman(g["visits"].to_numpy(float), g["null_density_per_m_per_cell"].to_numpy())
         return dict(**a, rho_null=b["rho"])
-    per_ses = S.per_group(E, ["rat", "session_id", "day"], rho)
+    per_ses = S.per_group(E, ["rat", "session_id", "day", "session"], rho)
     return dict(elements=E, glm=pd.concat(glm, ignore_index=True),
                 robustness=pd.concat(rob, ignore_index=True), per_session=per_ses)
 
@@ -97,20 +98,19 @@ def plot(res, cfg):
                 ax[j].scatter(g[x], g["density_per_m_per_cell"], s=1.5, alpha=0.12, color=c, linewidths=0,
                               rasterized=True)
             m = _binned(g, x, "density_per_m_per_cell")
-            ax[j].errorbar(m["x"], m["y"], m["se"], fmt="o-", ms=2.5, color=c, label=f"{k}, observed")
-            m = _binned(g, x, "null_density_per_m_per_cell")
-            ax[j].errorbar(m["x"], m["y"], m["se"], fmt="s--", ms=2.5, mfc="w", color=c, label=f"{k}, surrogate")
+            ax[j].errorbar(m["x"], m["y"], m["se"], fmt="o-", ms=2.5, color=c, label=k)
         ax[j].set(xscale="log", xlabel=lab, ylabel="field peaks / m / place cell")
     ax[0].set(ylim=(0, E["density_per_m_per_cell"].quantile(0.99)))
     ax[1].legend(frameon=False)
     ps = res["per_session"]
     for rat, g in ps.groupby("rat"):
         c = P.RAT_COLORS.get(rat)
-        ax[2].plot(g["day"], g["rho"], "o-", ms=3, color=c, label=f"{rat}, observed")
-        ax[2].plot(g["day"], g["rho_null"], "s--", ms=3, mfc="w", color=c, label=f"{rat}, surrogate")
+        ax[2].plot(g["day"], g["rho"], "o-", ms=3, color=c, label=rat)
     ax[2].axhline(0, color="k", lw=0.6)
-    ax[2].set(xlabel="training day", ylabel="Spearman ρ (density vs visits)")
-    ax[2].legend(frameon=False, ncol=2, loc="lower center", bbox_to_anchor=(0.5, 1.0), columnspacing=1.0)
+    ax[2].set(ylabel="Spearman ρ (density vs visits)")
+    lab = ps.drop_duplicates("day").sort_values("day")
+    common.gl_xticks(ax[2], lab["day"].astype(int), lab["session"])
+    ax[2].legend(frameon=False)
     return [("field_density_usage", fig)]
 
 
@@ -118,9 +118,8 @@ def plot(res, cfg):
 CAPTIONS = {"field_density_usage": (
     r"\textbf{Field density vs usage.} Left: field peaks per metre per place cell against the "
     r"number of visits; dots are single maze elements in single sessions, markers are means $\pm$ s.e.m.\ "
-    r"in visit octiles. Filled/solid: observed. Open/dashed: spike-shift surrogates of the same cells "
-    r"(spatial tuning destroyed, rate and maze sampling preserved). Middle: the same against running "
-    r"occupancy. Right: within-session Spearman correlation between field density and visits, per training day.")}
+    r"in visit octiles. Middle: the same against running "
+    r"occupancy. Right: within-session Spearman correlation between field density and visits, per session. " + common.GL_NOTE)}
 
 
 def latex(T):

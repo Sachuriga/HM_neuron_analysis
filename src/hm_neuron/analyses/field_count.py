@@ -178,6 +178,7 @@ def _per_session(pc):
     for (rat, sid), g in pc.groupby(["rat", "session_id"], sort=False):
         k = g["n_fields"].to_numpy()
         row = dict(rat=rat, session_id=sid, day=int(g["day"].iloc[0]), goal=int(g["goal"].iloc[0]),
+                   session=common.gl_label(g["block"].iloc[0], g["day_in_block"].iloc[0]),
                    n_place=len(k), mean=k.mean(), median=np.median(k), q25=np.percentile(k, 25),
                    q75=np.percentile(k, 75), max=int(k.max()),
                    surrogate_median=float(g["n_fields_null_1"].median()),
@@ -192,76 +193,79 @@ def _per_session(pc):
     return pd.DataFrame(rows).sort_values(["rat", "day"]).reset_index(drop=True)
 
 
-def _plot_sessions(pc, fits, ncols=7, bin_w=3):
-    """Histogram of fields per place cell for every session (rows of panels per rat, one panel per day)."""
+def _plot_sessions(pc, fits, bin_w=3):
+    """Histogram of fields per place cell for every session.
+
+    Per rat a block of panels: rows = goal locations (GL1..), columns = sessions with that goal (S1..).
+    """
     rats = sorted(pc["rat"].unique())
-    days = np.arange(int(pc["day"].min()), int(pc["day"].max()) + 1)
-    nrow = int(np.ceil(len(days) / ncols))
+    blocks = sorted(int(b) for b in pc["block"].unique())
+    ncols = int(pc["day_in_block"].max()) + 1
+    n_in_block = pc.groupby("block")["day_in_block"].max().astype(int) + 1     # sessions run with each goal
+    nrow = len(blocks)
     kmax = int(pc["n_fields"].max())
     edges = np.arange(0.5, kmax + bin_w + 0.5, bin_w)
     mid = (edges[:-1] + edges[1:]) / 2
     ks = np.arange(1, int(edges[-1]) + 1)
-    fig, axs = P.figure(180, 24 * nrow * len(rats) + 8, nrows=nrow * len(rats), ncols=ncols,
+    fig, axs = P.figure(180, 22 * nrow * len(rats) + 8, nrows=nrow * len(rats), ncols=ncols,
                         sharex=True, sharey=True, squeeze=False)
     for ri, rat in enumerate(rats):
         g = pc[pc["rat"] == rat]
+        c = P.RAT_COLORS.get(rat)
         fr = fits[(fits["group"] == rat) & (fits["model"] == "lognormal")]
         ref = None
         if len(fr):
             p = pmf("lognormal", [float(v) for v in fr["params"].iloc[0].split(";")], ks)
             ref = np.histogram(ks, edges, weights=p)[0]
-        for j in range(nrow * ncols):
-            ax = axs[ri * nrow + j // ncols, j % ncols]
-            if j >= len(days):
-                ax.axis("off")
-                continue
-            d = g[g["day"] == days[j]]
-            if d.empty:
-                ax.text(0.5, 0.5, f"day {days[j]}\nno usable session", transform=ax.transAxes,
-                        ha="center", va="center", fontsize=5, color="0.4")
-                continue
-            k = d["n_fields"].to_numpy()
-            ax.bar(mid, np.histogram(k, edges)[0] / len(k), width=bin_w, color=P.RAT_COLORS.get(rat),
-                   alpha=0.55, label="observed")
-            kn = d["n_fields_null_1"].dropna().to_numpy()
-            ax.step(edges, np.r_[np.histogram(kn, edges)[0] / max(len(kn), 1), 0], where="post",
-                    color="k", lw=0.6, label="surrogate")
-            if ref is not None:
-                ax.plot(mid, ref, color="0.35", lw=0.6, ls="--", label=f"log-normal fit, all {rat} sessions")
-            ax.axvline(np.median(k), color=P.RAT_COLORS.get(rat), lw=0.8)
-            ax.set_title(f"day {days[j]}: n = {len(k)}, median {np.median(k):.0f}", fontsize=5.5, pad=2)
-            handles = ax.get_legend_handles_labels()
-        # legend in the first unused panel of this rat's block (or the last panel if the grid is full)
-        spare = len(days) if len(days) < nrow * ncols else nrow * ncols - 1
-        axs[ri * nrow + spare // ncols, spare % ncols].legend(*handles, frameon=False, fontsize=5,
-                                                              loc="center", handlelength=1.2, title=rat)
-        for r in range(nrow):
-            axs[ri * nrow + r, 0].set_ylabel(f"{rat}\nfraction of cells")
+        handles, spare = None, None
+        for bi, blk in enumerate(blocks):
+            for j in range(ncols):
+                ax = axs[ri * nrow + bi, j]
+                lab = common.gl_label(blk, j)
+                d = g[(g["block"] == blk) & (g["day_in_block"] == j)]
+                if d.empty and j >= n_in_block[blk]:          # this goal had fewer sessions
+                    ax.axis("off")
+                    spare = spare or ax
+                    continue
+                if d.empty:
+                    ax.text(0.5, 0.5, f"{lab}\nno usable session", transform=ax.transAxes,
+                            ha="center", va="center", fontsize=5, color="0.4")
+                    continue
+                k = d["n_fields"].to_numpy()
+                ax.bar(mid, np.histogram(k, edges)[0] / len(k), width=bin_w, color=c, alpha=0.55,
+                       label="observed")
+                if ref is not None:
+                    ax.plot(mid, ref, color="0.35", lw=0.6, ls="--", label=f"log-normal fit, all {rat} sessions")
+                ax.axvline(np.median(k), color=c, lw=0.8)
+                ax.set_title(f"{lab}: n = {len(k)}, median {np.median(k):.0f}", fontsize=5.5, pad=2)
+                handles = ax.get_legend_handles_labels()
+            axs[ri * nrow + bi, 0].set_ylabel(f"{rat}\nfraction of cells")
+        if handles:
+            (spare or axs[ri * nrow, -1]).legend(*handles, frameon=False, fontsize=5, loc="center",
+                                                 handlelength=1.2, title=rat)
     for a in axs[-1]:
         a.set_xlabel("fields per cell")
+        a.xaxis.set_tick_params(labelbottom=True)
     return fig
 
 
 def _plot_days(pc):
-    """Box plot of fields per place cell by training day, one panel per rat."""
+    """Box plot of fields per place cell for every session in training order, one panel per rat."""
     rats = sorted(pc["rat"].unique())
-    fig, axs = P.figure(180, 55, ncols=len(rats), sharey=True, squeeze=False)
+    fig, axs = P.figure(180, 62, ncols=len(rats), sharey=True, squeeze=False)
     for ax, rat in zip(axs[0], rats):
         g = pc[pc["rat"] == rat]
-        days = sorted(g["day"].unique())
+        ses = g.drop_duplicates("day").sort_values("day")
+        days = ses["day"].astype(int).tolist()
         c = P.RAT_COLORS.get(rat)
         ax.boxplot([g.loc[g["day"] == d, "n_fields"].to_numpy() for d in days], positions=days, widths=0.6,
                    patch_artist=True, showfliers=True,
                    boxprops=dict(facecolor=c, alpha=0.45, lw=0.5), medianprops=dict(color="k", lw=1.0),
                    whiskerprops=dict(lw=0.5), capprops=dict(lw=0.5),
                    flierprops=dict(marker=".", ms=1.5, mfc=c, mec="none", alpha=0.6))
-        m = g.groupby("day")["n_fields_null_1"].median()
-        ax.plot(m.index, m.values, "s--", ms=2.5, mfc="w", color="k", lw=0.7, label="surrogate median")
-        for d in g.loc[g["is_switch_day"].astype(bool), "day"].unique():
-            ax.axvline(d - 0.5, color="0.6", lw=0.5, ls=":")
-        ax.set(yscale="log", xlabel="training day", title=rat)
-        ax.set_xticks(days[::2]); ax.set_xticklabels(days[::2])
-        ax.legend(frameon=False)
+        ax.set(yscale="log", title=rat)
+        common.gl_xticks(ax, days, [common.gl_label(b, d) for b, d in zip(ses["block"], ses["day_in_block"])],
+                         fontsize=5)
     axs[0, 0].set_ylabel("fields per place cell")
     return fig
 
@@ -286,9 +290,6 @@ def plot(res, cfg):
             th = [float(v) for v in r.params.split(";")]
             a.plot(ks, pmf(r.model, th, ks), color=MODEL_COLORS[r.model],
                    label=f"{r.model} (ΔAIC {r.delta_aic:.0f})")
-        kn = pc["n_fields_null_1"].dropna().to_numpy(int)
-        hn = np.bincount(kn, minlength=k.max() + 2)[:k.max() + 2] / len(kn)
-        a.step(np.arange(len(hn)), hn, where="mid", color="k", lw=0.7, label="spike-shift surrogate")
         a.set(xlabel="fields per place cell", ylabel="fraction of cells")
     ax[0].set(ylim=(0, h.max() * 1.25), title="linear scale")
     ax[0].legend(frameon=False)
@@ -309,9 +310,6 @@ def plot(res, cfg):
     for rat, g in pc.groupby("rat"):
         ax[3].scatter(g["mean_hz"], g["n_fields"], s=3, alpha=0.4, color=P.RAT_COLORS.get(rat),
                       label=rat, linewidths=0)
-    q = pd.qcut(pc["mean_hz"], 12, duplicates="drop")
-    m = pc.groupby(q, observed=True).agg(x=("mean_hz", "median"), y=("n_fields_null", "mean"))
-    ax[3].plot(m["x"], m["y"], "k-", lw=1.0, label="surrogate (mean)")
     ax[3].set(xscale="log", yscale="log", xlabel="mean running rate (Hz)", ylabel="fields per cell")
     ax[3].legend(frameon=False)
     return [("field_count", fig), ("field_count_by_session", _plot_sessions(pc, fits)),
@@ -327,20 +325,18 @@ CAPTIONS = {"field_count": (
     r"maximum-likelihood fit of each candidate model, on a linear (left) and logarithmic (right) "
     r"$y$-axis; $\Delta$AIC relative to the best model in the legend. Bottom left: survival function "
     r"$P(N\geq n)$ per rat on log--log axes with the pooled log-normal and Gaussian fits (dashed). "
-    r"Bottom right: field count against mean running rate, one dot per place cell. "
-    r"Black: the same cells after circularly shifting their spikes in time (spatial tuning destroyed, "
-    r"rate and maze sampling preserved), i.e.\ the noise floor of the field detector."),
+    r"Bottom right: field count against mean running rate, one dot per place cell."),
     "field_count_by_session": (
-    r"\textbf{Fields per place cell in every session.} One panel per session (rat and training day in the "
-    r"title, with the number of place cells and their median field count). Bars: fraction of the session's "
-    r"place cells in bins of three fields; vertical line: median. Black steps: the same cells after a "
-    r"circular spike shift (surrogate). Dashed: log-normal fitted to all sessions of that rat, for reference. "
-    r"All panels share both axes."),
+    r"\textbf{Fields per place cell in every session.} One panel per session; for each rat, rows are goal "
+    r"locations and columns the successive sessions with that goal. Titles give the session, the number of "
+    r"place cells and their median field count. Bars: fraction of the session's "
+    r"place cells in bins of three fields; vertical line: median. "
+    r"Dashed: log-normal fitted to all sessions of that rat, for reference. "
+    r"All panels share both axes. " + common.GL_NOTE),
     "field_count_by_day": (
     r"\textbf{Fields per place cell across training.} Box plots (median, quartiles, 1.5 IQR whiskers, "
-    r"outliers as dots) of the field count of the place cells recorded on each training day, per rat; "
-    r"log $y$-axis. Open squares: median of the spike-shift surrogates. Dotted vertical lines: first day "
-    r"with a new goal.")}
+    r"outliers as dots) of the field count of the place cells recorded in each session, in training order, per rat; "
+    r"log $y$-axis. Dotted vertical lines: first session with a new goal. " + common.GL_NOTE)}
 
 
 def latex(T):
@@ -406,10 +402,11 @@ def latex(T):
         t = ps.assign(best_model=ps["best_model"].map(
             dict(lognormal="log-normal", gaussian="Gaussian", negbin="neg. binomial",
                  geometric="geometric", poisson="Poisson")).fillna("--"))
-        text += R.table(t, "Fields per place cell in each session. IQR bounds are the 25th and 75th "
+        text += R.table(t, "Fields per place cell in each session (GL$n$S$x$: $x$-th session with the "
+                        "$n$-th goal location; goal = goal node). IQR bounds are the 25th and 75th "
                         r"percentiles; $\Delta$AIC columns are relative to the best model of that session.",
                         "tab:field_count:sessions",
-                        cols=["rat", "day", "goal", "n_place", "median", "q25", "q75", "max",
+                        cols=["rat", "session", "goal", "n_place", "median", "q25", "q75", "max",
                               "surrogate_median", "best_model", "daic_lognormal", "daic_gaussian"],
                         headers=dict(n_place="place cells", q25="25\\%", q75="75\\%",
                                      surrogate_median="surrogate median", best_model="best model",

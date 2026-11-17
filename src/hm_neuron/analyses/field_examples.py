@@ -58,6 +58,7 @@ def run(sessions, cfg):
         pc = U[U["is_place"]].sort_values(["n_fields", "unit"])
         if pc.empty:
             continue
+        label = common.gl_label(row["block"], row["day_in_block"])
         mask = fl.running_mask(s, cfg)
         rng = np.random.default_rng(f.seed + 2)
         step = max(1, int(mask.sum() // 6000))
@@ -77,11 +78,12 @@ def run(sessions, cfg):
             in_field = np.zeros(lm.n_bins, bool)
             for d in fd:
                 in_field[d["bins"]] = True
-            ex.append(dict(rat=rat, date=str(row["date"]), day=int(row["day"]), unit=uid, quantile=q,
+            ex.append(dict(rat=rat, date=str(row["date"]), day=int(row["day"]), session=label, unit=uid,
+                           quantile=q,
                            rate=rate, valid=R["valid"], fields=fd, srate=srate, sfields=sfd,
                            path=path, spikes=np.c_[s.x[si], s.y[si]], peak=peak, goal=s.goal,
                            mean_hz=float(u["mean_hz"]), si=float(u["si"])))
-            cells.append(dict(rat=rat, date=str(row["date"]), day=int(row["day"]), unit=uid,
+            cells.append(dict(rat=rat, date=str(row["date"]), day=int(row["day"]), session=label, unit=uid,
                               percentile=int(100 * q), n_spikes_run=int(u["n_spikes_run"]),
                               mean_hz=float(u["mean_hz"]), peak_hz=peak, threshold_hz=f.field_frac * peak,
                               si_bits_per_spike=float(u["si"]), si_p=float(u["si_p"]),
@@ -137,19 +139,18 @@ def plot(res, cfg):
     lm = mz.maze_from_cfg(cfg)
     ex = res["examples"]
     n = len(ex)
-    fig, axs = P.figure(180, 27 * n + 6, nrows=n, ncols=4, squeeze=False)
+    fig, axs = P.figure(180, 27 * n + 6, nrows=n, ncols=3, squeeze=False)
     heads = ["1. spikes (red) on the running path",
              "2. smoothed rate map (triangles: field peaks)",
-             f"3. bins ≥ {cfg.fields.field_frac:.0%} of peak → fields",
-             "4. same cell, spikes shifted in time"]
+             f"3. bins ≥ {cfg.fields.field_frac:.0%} of peak → fields"]
     for i, e in enumerate(ex):
         ax = axs[i]
         ax[0].plot(e["path"][:, 0], e["path"][:, 1], ".", ms=0.6, color="0.8", rasterized=True)
         ax[0].plot(e["spikes"][:, 0], e["spikes"][:, 1], ".", ms=0.9, color="r", alpha=0.5, rasterized=True)
         ax[0].set_aspect("equal"); ax[0].set_xlim(0.5, 9.0); ax[0].set_ylim(0.2, 4.6); ax[0].axis("off")
-        ax[0].set_title(f"{e['rat']} day {e['day']}, unit {e['unit']}: {e['mean_hz']:.2f} Hz, "
+        ax[0].set_title(f"{e['rat']} {e['session']}, unit {e['unit']}: {e['mean_hz']:.2f} Hz, "
                         f"SI {e['si']:.2f} bit/spk", loc="left", fontsize=5.5)
-        vmax = max(e["peak"], np.nanmax(np.where(e["valid"], e["srate"], np.nan)))
+        vmax = e["peak"]
         P.draw_maze(ax[1], lm, np.where(e["valid"], e["rate"], np.nan), vmin=0, vmax=vmax, lw=1.6,
                     node_size=5, goal=e["goal"])
         _mark_peaks(ax[1], e["fields"], lm)
@@ -159,10 +160,6 @@ def plot(res, cfg):
                     vmin=0, vmax=len(_FIELD_COLORS), lw=1.6, node_size=5)
         ax[2].set_title(f"{len(e['fields'])} fields (black: rejected, too short or < "
                         f"{cfg.fields.min_peak_hz:g} Hz)", loc="left", fontsize=5.5)
-        P.draw_maze(ax[3], lm, np.where(e["valid"], e["srate"], np.nan), vmin=0, vmax=vmax, lw=1.6,
-                    node_size=5)
-        _mark_peaks(ax[3], e["sfields"], lm)
-        ax[3].set_title(f"surrogate: {len(e['sfields'])} fields, same colour scale", loc="left", fontsize=5.5)
         if i == 0:
             for a, h in zip(ax, heads):
                 a.text(0.0, 1.32, h, transform=a.transAxes, fontsize=6.5, fontweight="bold", va="bottom")
@@ -171,14 +168,14 @@ def plot(res, cfg):
 
 # ----------------------------------------------------------------------------- LaTeX report
 CAPTIONS = {"field_examples": (
-    r"\textbf{Field detection, step by step.} One mid-training session per rat; rows are place cells at "
+    r"\textbf{Field detection, step by step.} One mid-training session per rat (GL$n$S$x$: $x$-th session "
+    r"with the $n$-th goal location); rows are place cells at "
     r"the 10th, 50th and 90th percentile of field count in that session. (1) Spikes emitted while running "
     r"inside trials (red) on the animal's path (grey). (2) Rate map on the linearised maze, dark = 0, "
     r"yellow = the cell's peak; open circle = goal node; triangles = peaks of accepted fields. "
     r"(3) Bins at or above the threshold. Each connected group that passes the size and peak criteria is "
     r"one field (colours repeat); black = above threshold but rejected; grey = below threshold or not "
-    r"visited. (4) Rate map and detected field peaks of the same cell after circularly shifting its spikes "
-    r"in time, which removes spatial tuning but keeps the spike count and the path. Colour scale as in (2).")}
+    r"visited.")}
 
 
 def latex(T):
@@ -208,7 +205,7 @@ def latex(T):
             "\n" + r"\begin{enumerate}" + "\n" + "\n".join(r"\item " + s for s in steps) + "\n"
             + r"\end{enumerate}" + "\n\n")
     text += R.table(T["cells"], "Example cells of Fig.~\\ref{fig:field_examples}.", "tab:field_examples:cells",
-                    cols=["rat", "day", "unit", "percentile", "mean_hz", "peak_hz", "threshold_hz",
+                    cols=["rat", "session", "unit", "percentile", "mean_hz", "peak_hz", "threshold_hz",
                           "si_bits_per_spike", "bins_above_threshold", "bins_rejected", "n_fields",
                           "median_field_m", "n_fields_surrogate"],
                     headers=dict(percentile="pctl.", mean_hz="mean (Hz)", peak_hz="peak (Hz)",

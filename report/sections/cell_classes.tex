@@ -1,6 +1,6 @@
 \section{Goal, start, bridge and outside-maze cells per session}
 \label{sec:cell_classes}
-\noindent\textit{Analysis \texttt{cell\_classes}, 38 sessions, fingerprint \texttt{3be9e7c5cdfa}.}
+\noindent\textit{Analysis \texttt{cell\_classes}, 38 sessions, fingerprint \texttt{f0117c8bb8aa}.}
 
 Every good unit with at least 100 spikes (37 sessions with usable trial timing) was tested for a firing preference for six behavioural states. A unit belongs to a class when its rate in that state is at least 0.5\,Hz and exceeds its reference rate with $p<0.05$ (one-sided) against all circular shifts ($\geq 20$\,s) of its spike train relative to behaviour. Classes are not exclusive, and the test alone admits at most 5\,\% of units.
 \begin{description}\setlength{\itemsep}{0pt}
@@ -11,7 +11,7 @@ Every good unit with at least 100 spikes (37 sessions with usable trial timing) 
 \item[Outside maze] while the rat is off the maze (carried from the goal to the next start, and before the first and after the last trial), against all in-trial time.
 \item[At goal after arrival] from goal arrival until the rat is picked up, against all in-trial time.
 \end{description}
-The rat's own track is frozen between trials. The pick-up was therefore timed from the researcher track, as the last moment at which the researcher was within 1.5\,m of where the rat ended the trial (96\,\% of inter-trial gaps could be timed). The rat stayed at the goal for a median of 47\,s and was then carried for 18\,s, so ``between trials'' is mostly time at the goal; it is listed as its own class and is not part of the outside-maze class. All states are restricted to the span of the spike record.
+The rat's own track is frozen between trials. The pick-up was therefore timed from the researcher track, as the last moment at which the researcher was within 1.5\,m of where the rat ended the trial (96\,\% of inter-trial gaps could be timed). The rat stayed at the goal for a median of 47\,s and was then carried for 18\,s, so ``between trials'' is mostly time at the goal; it is listed as its own class and is not part of the outside-maze class. All states are restricted to the span of the spike record. Figure~\ref{fig:cell_classes_rasters} shows example units of every class. Sessions are labelled GL$n$S$x$, the $x$-th session with the $n$-th goal location, so the last session of a goal is the recall day before the switch.
 
 \begin{itemize}\setlength{\itemsep}{0pt}
 \item \textbf{Goal}: 359 of 2{,}482 pyramidal units (14.5\,\%); above the 5\,\% chance level in 32 of 37 sessions; control locations give 11.4\,\% (Wilcoxon across sessions, $p = 0.00404$).
@@ -29,61 +29,67 @@ Of the 24 per-rat rank correlations between the fraction of cells and training (
 \begin{table}[htbp]
 \centering
 \scriptsize
-\caption{Rat5: number of good pyramidal units in each class per session (percentage of the units tested). Classes are not exclusive; ``any bridge'' pools the five corridors and is not the sum of long and short.}
+\caption{Rat5: number of good pyramidal units in each class per session (percentage of the units tested). GL$n$S$x$: $x$-th session with the $n$-th goal location; a rule separates goal locations. Classes are not exclusive; ``any bridge'' pools the five corridors and is not the sum of long and short.}
 \label{tab:cell_classes:Rat5}
-\begin{tabular}{rlrlllllll}
+\begin{tabular}{llrrlllllll}
 \toprule
-day & goal node & units & goal & start & long bridge & short bridge & any bridge & outside maze & at goal \\
+session & goal node & day & units & goal & start & long bridge & short bridge & any bridge & outside maze & at goal \\
 \midrule
-1 & 410 & 48 & 4 (8\%) & 4 (8\%) & 8 (17\%) & 8 (17\%) & 10 (21\%) & 12 (25\%) & 3 (6\%) \\
-3 & 410 & 45 & 6 (13\%) & 5 (11\%) & 7 (16\%) & 4 (9\%) & 9 (20\%) & 7 (16\%) & 7 (16\%) \\
-4 & 410 & 60 & 13 (22\%) & 11 (18\%) & 15 (25\%) & 9 (15\%) & 17 (28\%) & 12 (20\%) & 7 (12\%) \\
-5 & 410 & 52 & 7 (13\%) & 8 (15\%) & 12 (23\%) & 6 (12\%) & 11 (21\%) & 6 (12\%) & 7 (13\%) \\
-6 & 314 & 48 & 7 (15\%) & 6 (12\%) & 9 (19\%) & 9 (19\%) & 6 (12\%) & 10 (21\%) & 7 (15\%) \\
-7 & 314 & 39 & 6 (15\%) & 5 (13\%) & 6 (15\%) & 5 (13\%) & 7 (18\%) & 7 (18\%) & 4 (10\%) \\
-8 & 314 & 64 & 8 (12\%) & 11 (17\%) & 5 (8\%) & 9 (14\%) & 7 (11\%) & 9 (14\%) & 5 (8\%) \\
-9 & 314 & 84 & 3 (4\%) & 9 (11\%) & 11 (13\%) & 14 (17\%) & 13 (15\%) & 13 (15\%) & 8 (10\%) \\
-10 & 314 & 104 & 14 (13\%) & 19 (18\%) & 18 (17\%) & 15 (14\%) & 16 (15\%) & 12 (12\%) & 10 (10\%) \\
-11 & 107 & 65 & 9 (14\%) & 16 (25\%) & 10 (15\%) & 11 (17\%) & 12 (18\%) & 9 (14\%) & 11 (17\%) \\
-12 & 107 & 84 & 10 (12\%) & 10 (12\%) & 10 (12\%) & 9 (11\%) & 14 (17\%) & 18 (21\%) & 18 (21\%) \\
-13 & 107 & 86 & 9 (10\%) & 6 (7\%) & 15 (17\%) & 9 (10\%) & 15 (17\%) & 14 (16\%) & 14 (16\%) \\
-14 & 107 & 58 & 6 (10\%) & 9 (16\%) & 11 (19\%) & 5 (9\%) & 12 (21\%) & 12 (21\%) & 8 (14\%) \\
-15 & 107 & 60 & 8 (13\%) & 8 (13\%) & 10 (17\%) & 8 (13\%) & 11 (18\%) & 15 (25\%) & 12 (20\%) \\
-16 & 219 & 44 & 6 (14\%) & 7 (16\%) & 5 (11\%) & 3 (7\%) & 5 (11\%) & 5 (11\%) & 5 (11\%) \\
-17 & 219 & 76 & 12 (16\%) & 11 (14\%) & 11 (14\%) & 7 (9\%) & 11 (14\%) & 18 (24\%) & 12 (16\%) \\
-18 & 219 & 59 & 8 (14\%) & 13 (22\%) & 9 (15\%) & 8 (14\%) & 10 (17\%) & 9 (15\%) & 9 (15\%) \\
-19 & 219 & 71 & 9 (13\%) & 13 (18\%) & 10 (14\%) & 6 (8\%) & 9 (13\%) & 10 (14\%) & 10 (14\%) \\
+GL1S1 & 410 & 1 & 48 & 4 (8\%) & 4 (8\%) & 8 (17\%) & 8 (17\%) & 10 (21\%) & 12 (25\%) & 3 (6\%) \\
+GL1S3 & 410 & 3 & 45 & 6 (13\%) & 5 (11\%) & 7 (16\%) & 4 (9\%) & 9 (20\%) & 7 (16\%) & 7 (16\%) \\
+GL1S4 & 410 & 4 & 60 & 13 (22\%) & 11 (18\%) & 15 (25\%) & 9 (15\%) & 17 (28\%) & 12 (20\%) & 7 (12\%) \\
+GL1S5 & 410 & 5 & 52 & 7 (13\%) & 8 (15\%) & 12 (23\%) & 6 (12\%) & 11 (21\%) & 6 (12\%) & 7 (13\%) \\
+\midrule
+GL2S1 & 314 & 6 & 48 & 7 (15\%) & 6 (12\%) & 9 (19\%) & 9 (19\%) & 6 (12\%) & 10 (21\%) & 7 (15\%) \\
+GL2S2 & 314 & 7 & 39 & 6 (15\%) & 5 (13\%) & 6 (15\%) & 5 (13\%) & 7 (18\%) & 7 (18\%) & 4 (10\%) \\
+GL2S3 & 314 & 8 & 64 & 8 (12\%) & 11 (17\%) & 5 (8\%) & 9 (14\%) & 7 (11\%) & 9 (14\%) & 5 (8\%) \\
+GL2S4 & 314 & 9 & 84 & 3 (4\%) & 9 (11\%) & 11 (13\%) & 14 (17\%) & 13 (15\%) & 13 (15\%) & 8 (10\%) \\
+GL2S5 & 314 & 10 & 104 & 14 (13\%) & 19 (18\%) & 18 (17\%) & 15 (14\%) & 16 (15\%) & 12 (12\%) & 10 (10\%) \\
+\midrule
+GL3S1 & 107 & 11 & 65 & 9 (14\%) & 16 (25\%) & 10 (15\%) & 11 (17\%) & 12 (18\%) & 9 (14\%) & 11 (17\%) \\
+GL3S2 & 107 & 12 & 84 & 10 (12\%) & 10 (12\%) & 10 (12\%) & 9 (11\%) & 14 (17\%) & 18 (21\%) & 18 (21\%) \\
+GL3S3 & 107 & 13 & 86 & 9 (10\%) & 6 (7\%) & 15 (17\%) & 9 (10\%) & 15 (17\%) & 14 (16\%) & 14 (16\%) \\
+GL3S4 & 107 & 14 & 58 & 6 (10\%) & 9 (16\%) & 11 (19\%) & 5 (9\%) & 12 (21\%) & 12 (21\%) & 8 (14\%) \\
+GL3S5 & 107 & 15 & 60 & 8 (13\%) & 8 (13\%) & 10 (17\%) & 8 (13\%) & 11 (18\%) & 15 (25\%) & 12 (20\%) \\
+\midrule
+GL4S1 & 219 & 16 & 44 & 6 (14\%) & 7 (16\%) & 5 (11\%) & 3 (7\%) & 5 (11\%) & 5 (11\%) & 5 (11\%) \\
+GL4S2 & 219 & 17 & 76 & 12 (16\%) & 11 (14\%) & 11 (14\%) & 7 (9\%) & 11 (14\%) & 18 (24\%) & 12 (16\%) \\
+GL4S3 & 219 & 18 & 59 & 8 (14\%) & 13 (22\%) & 9 (15\%) & 8 (14\%) & 10 (17\%) & 9 (15\%) & 9 (15\%) \\
+GL4S4 & 219 & 19 & 71 & 9 (13\%) & 13 (18\%) & 10 (14\%) & 6 (8\%) & 9 (13\%) & 10 (14\%) & 10 (14\%) \\
 \bottomrule
 \end{tabular}
 \end{table}
 \begin{table}[htbp]
 \centering
 \scriptsize
-\caption{Rat6: number of good pyramidal units in each class per session (percentage of the units tested). Classes are not exclusive; ``any bridge'' pools the five corridors and is not the sum of long and short.}
+\caption{Rat6: number of good pyramidal units in each class per session (percentage of the units tested). GL$n$S$x$: $x$-th session with the $n$-th goal location; a rule separates goal locations. Classes are not exclusive; ``any bridge'' pools the five corridors and is not the sum of long and short.}
 \label{tab:cell_classes:Rat6}
-\begin{tabular}{rlrlllllll}
+\begin{tabular}{llrrlllllll}
 \toprule
-day & goal node & units & goal & start & long bridge & short bridge & any bridge & outside maze & at goal \\
+session & goal node & day & units & goal & start & long bridge & short bridge & any bridge & outside maze & at goal \\
 \midrule
-1 & 204 & 83 & 11 (13\%) & 3 (4\%) & 17 (20\%) & 7 (8\%) & 16 (19\%) & 7 (8\%) & 3 (4\%) \\
-2 & 204 & 57 & 7 (12\%) & 8 (14\%) & 15 (26\%) & 14 (25\%) & 20 (35\%) & 1 (2\%) & 2 (4\%) \\
-3 & 204 & 77 & 12 (16\%) & 6 (8\%) & 14 (18\%) & 14 (18\%) & 14 (18\%) & 7 (9\%) & 3 (4\%) \\
-4 & 204 & 53 & 8 (15\%) & 5 (9\%) & 13 (25\%) & 9 (17\%) & 13 (25\%) & 7 (13\%) & 7 (13\%) \\
-5 & 204 & 66 & 18 (27\%) & 6 (9\%) & 10 (15\%) & 9 (14\%) & 10 (15\%) & 12 (18\%) & 5 (8\%) \\
-6 & 109 & 42 & 11 (26\%) & 3 (7\%) & 4 (10\%) & 9 (21\%) & 7 (17\%) & 8 (19\%) & 4 (10\%) \\
-7 & 109 & 47 & 8 (17\%) & 5 (11\%) & 8 (17\%) & 5 (11\%) & 6 (13\%) & 3 (6\%) & 2 (4\%) \\
-8 & 109 & 40 & 4 (10\%) & 3 (8\%) & 10 (25\%) & 7 (18\%) & 9 (22\%) & 7 (18\%) & 5 (12\%) \\
-9 & 109 & 64 & 7 (11\%) & 7 (11\%) & 15 (23\%) & 13 (20\%) & 14 (22\%) & 7 (11\%) & 1 (2\%) \\
-10 & 109 & 86 & 11 (13\%) & 9 (10\%) & 15 (17\%) & 8 (9\%) & 16 (19\%) & 10 (12\%) & 6 (7\%) \\
-11 & 318 & 86 & 18 (21\%) & 4 (5\%) & 12 (14\%) & 8 (9\%) & 12 (14\%) & 21 (24\%) & 9 (10\%) \\
-12 & 318 & 82 & 19 (23\%) & 18 (22\%) & 10 (12\%) & 17 (21\%) & 12 (15\%) & 11 (13\%) & 9 (11\%) \\
-13 & 318 & 36 & 6 (17\%) & 2 (6\%) & 5 (14\%) & 3 (8\%) & 2 (6\%) & 4 (11\%) & 2 (6\%) \\
-14 & 318 & 98 & 19 (19\%) & 12 (12\%) & 12 (12\%) & 14 (14\%) & 17 (17\%) & 17 (17\%) & 12 (12\%) \\
-15 & 318 & 90 & 14 (16\%) & 17 (19\%) & 12 (13\%) & 19 (21\%) & 16 (18\%) & 19 (21\%) & 7 (8\%) \\
-16 & 421 & 63 & 13 (21\%) & 3 (5\%) & 14 (22\%) & 9 (14\%) & 17 (27\%) & 7 (11\%) & 6 (10\%) \\
-17 & 421 & 74 & 7 (9\%) & 2 (3\%) & 19 (26\%) & 9 (12\%) & 22 (30\%) & 11 (15\%) & 7 (9\%) \\
-18 & 421 & 95 & 10 (11\%) & 14 (15\%) & 23 (24\%) & 11 (12\%) & 20 (21\%) & 25 (26\%) & 6 (6\%) \\
-19 & 421 & 96 & 11 (11\%) & 8 (8\%) & 16 (17\%) & 7 (7\%) & 15 (16\%) & 16 (17\%) & 6 (6\%) \\
+GL1S1 & 204 & 1 & 83 & 11 (13\%) & 3 (4\%) & 17 (20\%) & 7 (8\%) & 16 (19\%) & 7 (8\%) & 3 (4\%) \\
+GL1S2 & 204 & 2 & 57 & 7 (12\%) & 8 (14\%) & 15 (26\%) & 14 (25\%) & 20 (35\%) & 1 (2\%) & 2 (4\%) \\
+GL1S3 & 204 & 3 & 77 & 12 (16\%) & 6 (8\%) & 14 (18\%) & 14 (18\%) & 14 (18\%) & 7 (9\%) & 3 (4\%) \\
+GL1S4 & 204 & 4 & 53 & 8 (15\%) & 5 (9\%) & 13 (25\%) & 9 (17\%) & 13 (25\%) & 7 (13\%) & 7 (13\%) \\
+GL1S5 & 204 & 5 & 66 & 18 (27\%) & 6 (9\%) & 10 (15\%) & 9 (14\%) & 10 (15\%) & 12 (18\%) & 5 (8\%) \\
+\midrule
+GL2S1 & 109 & 6 & 42 & 11 (26\%) & 3 (7\%) & 4 (10\%) & 9 (21\%) & 7 (17\%) & 8 (19\%) & 4 (10\%) \\
+GL2S2 & 109 & 7 & 47 & 8 (17\%) & 5 (11\%) & 8 (17\%) & 5 (11\%) & 6 (13\%) & 3 (6\%) & 2 (4\%) \\
+GL2S3 & 109 & 8 & 40 & 4 (10\%) & 3 (8\%) & 10 (25\%) & 7 (18\%) & 9 (22\%) & 7 (18\%) & 5 (12\%) \\
+GL2S4 & 109 & 9 & 64 & 7 (11\%) & 7 (11\%) & 15 (23\%) & 13 (20\%) & 14 (22\%) & 7 (11\%) & 1 (2\%) \\
+GL2S5 & 109 & 10 & 86 & 11 (13\%) & 9 (10\%) & 15 (17\%) & 8 (9\%) & 16 (19\%) & 10 (12\%) & 6 (7\%) \\
+\midrule
+GL3S1 & 318 & 11 & 86 & 18 (21\%) & 4 (5\%) & 12 (14\%) & 8 (9\%) & 12 (14\%) & 21 (24\%) & 9 (10\%) \\
+GL3S2 & 318 & 12 & 82 & 19 (23\%) & 18 (22\%) & 10 (12\%) & 17 (21\%) & 12 (15\%) & 11 (13\%) & 9 (11\%) \\
+GL3S3 & 318 & 13 & 36 & 6 (17\%) & 2 (6\%) & 5 (14\%) & 3 (8\%) & 2 (6\%) & 4 (11\%) & 2 (6\%) \\
+GL3S4 & 318 & 14 & 98 & 19 (19\%) & 12 (12\%) & 12 (12\%) & 14 (14\%) & 17 (17\%) & 17 (17\%) & 12 (12\%) \\
+GL3S5 & 318 & 15 & 90 & 14 (16\%) & 17 (19\%) & 12 (13\%) & 19 (21\%) & 16 (18\%) & 19 (21\%) & 7 (8\%) \\
+\midrule
+GL4S1 & 421 & 16 & 63 & 13 (21\%) & 3 (5\%) & 14 (22\%) & 9 (14\%) & 17 (27\%) & 7 (11\%) & 6 (10\%) \\
+GL4S2 & 421 & 17 & 74 & 7 (9\%) & 2 (3\%) & 19 (26\%) & 9 (12\%) & 22 (30\%) & 11 (15\%) & 7 (9\%) \\
+GL4S3 & 421 & 18 & 95 & 10 (11\%) & 14 (15\%) & 23 (24\%) & 11 (12\%) & 20 (21\%) & 25 (26\%) & 6 (6\%) \\
+GL4S4 & 421 & 19 & 96 & 11 (11\%) & 8 (8\%) & 16 (17\%) & 7 (7\%) & 15 (16\%) & 16 (17\%) & 6 (6\%) \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -187,8 +193,15 @@ Rat6 & at goal after arrival & day in goal block & -0.00716 & 0.977 & 19 \\
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=\textwidth]{cell_classes__cell_classes.pdf}
-\caption{\textbf{Cell classes across training days} (good pyramidal units). One line per rat; dotted lines: the same test at control locations with similar running occupancy (other nodes for the goal, random within-island corridors of the same length for the bridges). Dashed black line: the 5\,\% expected from the test alone. Grey vertical lines: first day with a new goal. Classes are not exclusive.}
+\caption{\textbf{Cell classes across training days} (good pyramidal units). One line per rat; dotted lines: the same test at control locations with similar running occupancy (other nodes for the goal, random within-island corridors of the same length for the bridges). Dashed black line: the 5\,\% expected from the test alone. Sessions are labelled GL$n$S$x$, the $x$-th session with the $n$-th goal location (goal nodes in the legend); lines are broken and separated by a grey line at every goal switch. Classes are not exclusive.}
 \label{fig:cell_classes}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{cell_classes__cell_classes_rasters.pdf}
+\caption{\textbf{Example units of each class} (rows of panels), three per class. Each line of a raster is one trial, bridge traversal or inter-trial gap, aligned to the event on the $x$-axis (red line); black ticks are spikes. Title: session, goal node, unit, and rate in the state against the reference rate. Examples are the members with the largest rate ratio among those firing at least 2\,Hz in the state (best of each rat first, one unit per session), so they show the clearest cases and not typical ones.}
+\label{fig:cell_classes_rasters}
 \end{figure}
 
 \begin{figure}[htbp]

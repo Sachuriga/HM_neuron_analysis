@@ -14,6 +14,28 @@ def session_id(row) -> str:
     return f"{row['rat']}_{row['date']}"
 
 
+def gl_label(block, day_in_block) -> str:
+    """'GL2S3' = third session with the second goal location; block 0 is habituation."""
+    name = f"GL{int(block)}" if int(block) > 0 else "Hab"
+    return f"{name}S{int(day_in_block) + 1}"
+
+
+GL_NOTE = (r"Sessions are labelled GL$n$S$x$: the $x$-th session with the $n$-th goal location, "
+           r"so the last session of a goal is the recall day before the switch.")
+
+
+def gl_xticks(ax, days, labels, fontsize=4.5):
+    """Label the x axis (positions = training day) with GLnSx names and mark the goal switches."""
+    days, labels = list(days), list(labels)
+    ax.set_xticks(days)
+    ax.set_xticklabels(labels, rotation=90, fontsize=fontsize)
+    ax.minorticks_off()
+    for d, lab in zip(days, labels):
+        if lab.endswith("S1") and d != min(days):
+            ax.axvline(d - 0.5, color="0.6", lw=0.5, ls=":")
+    ax.set_xlabel("session")
+
+
 MAX_ALIGN_ERROR_M = 0.25
 
 
