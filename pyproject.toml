@@ -20,9 +20,11 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest"]
+viz = ["pynwb", "openpyxl"]     # hm_neuron.tracker_viz (tracker summary / unit PDFs)
 
 [project.scripts]
 hm = "hm_neuron.cli:main"
+hm-visualize = "hm_neuron.tracker_viz.visualize_nwb:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

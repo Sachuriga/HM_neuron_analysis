@@ -74,3 +74,21 @@ See `notebooks/quickstart.ipynb`.
   The field cache is keyed by a hash of the field, linearisation and unit parameters, so changing
   a parameter recomputes automatically. Changing `fields.speed_smooth_s` needs
   `rm -r ~/hm_cache/sessions`.
+
+## Tracker unit PDFs (`hm_neuron.tracker_viz`)
+
+A copy of the Genzel tracker's step `v` (HM_Tracker_2025, `src/nwb/visualize_nwb.py`
+and the modules it needs). For one op folder it writes `visualization/summary.pdf`
+and one `Unit_<id>.pdf` per good unit: 2D rate maps, place-field outlines, event
+rasters / PETHs (reward, start, bridge, ...), theta phase and precession.
+
+```
+pip install -e ".[viz]"
+hm-visualize --output_folder <op_folder>
+```
+
+Place fields here are connected regions of the 2D rate map (5 cm bins, 2-bin
+Gaussian smoothing, speed > 0.05 m/s) at >= 50% of the cell's peak, with >= 6
+bins and an in-field peak >= 1 Hz (`MIN_FIELD_PEAK_HZ`; the tracker uses 0.5 Hz).
+There is no shuffle test. This is separate from the linearised-maze fields used
+by the `hm run` analyses (`hm_neuron.fields`).
