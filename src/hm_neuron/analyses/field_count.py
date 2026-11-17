@@ -169,7 +169,101 @@ def run(sessions, cfg):
     summary["fano"] = summary["var"] / summary["mean"]
     summary["frac_above_null"] = [float((g["n_fields"] > g["n_fields_null"]).mean())
                                   for _, g in pc.groupby("rat")]
-    return dict(units=U, fits=fits, confounds=conf, summary=summary)
+    return dict(units=U, fits=fits, confounds=conf, summary=summary, per_session=_per_session(pc))
+
+
+def _per_session(pc):
+    """One row per session: distribution of field count over its place cells, and which model fits it best."""
+    rows = []
+    for (rat, sid), g in pc.groupby(["rat", "session_id"], sort=False):
+        k = g["n_fields"].to_numpy()
+        row = dict(rat=rat, session_id=sid, day=int(g["day"].iloc[0]), goal=int(g["goal"].iloc[0]),
+                   n_place=len(k), mean=k.mean(), median=np.median(k), q25=np.percentile(k, 25),
+                   q75=np.percentile(k, 75), max=int(k.max()),
+                   surrogate_median=float(g["n_fields_null_1"].median()),
+                   frac_above_null=float((g["n_fields"] > g["n_fields_null"]).mean()))
+        if len(k) >= 10:
+            f = fit(k).set_index("model")
+            row.update(best_model=f["aic"].idxmin(), daic_lognormal=f.at["lognormal", "delta_aic"],
+                       daic_gaussian=f.at["gaussian", "delta_aic"], daic_negbin=f.at["negbin", "delta_aic"],
+                       lognormal_mu=f.at["lognormal", "params"][0],
+                       lognormal_sigma=float(np.exp(f.at["lognormal", "params"][1])))
+        rows.append(row)
+    return pd.DataFrame(rows).sort_values(["rat", "day"]).reset_index(drop=True)
+
+
+def _plot_sessions(pc, fits, ncols=7, bin_w=3):
+    """Histogram of fields per place cell for every session (rows of panels per rat, one panel per day)."""
+    rats = sorted(pc["rat"].unique())
+    days = np.arange(int(pc["day"].min()), int(pc["day"].max()) + 1)
+    nrow = int(np.ceil(len(days) / ncols))
+    kmax = int(pc["n_fields"].max())
+    edges = np.arange(0.5, kmax + bin_w + 0.5, bin_w)
+    mid = (edges[:-1] + edges[1:]) / 2
+    ks = np.arange(1, int(edges[-1]) + 1)
+    fig, axs = P.figure(180, 24 * nrow * len(rats) + 8, nrows=nrow * len(rats), ncols=ncols,
+                        sharex=True, sharey=True, squeeze=False)
+    for ri, rat in enumerate(rats):
+        g = pc[pc["rat"] == rat]
+        fr = fits[(fits["group"] == rat) & (fits["model"] == "lognormal")]
+        ref = None
+        if len(fr):
+            p = pmf("lognormal", [float(v) for v in fr["params"].iloc[0].split(";")], ks)
+            ref = np.histogram(ks, edges, weights=p)[0]
+        for j in range(nrow * ncols):
+            ax = axs[ri * nrow + j // ncols, j % ncols]
+            if j >= len(days):
+                ax.axis("off")
+                continue
+            d = g[g["day"] == days[j]]
+            if d.empty:
+                ax.text(0.5, 0.5, f"day {days[j]}\nno usable session", transform=ax.transAxes,
+                        ha="center", va="center", fontsize=5, color="0.4")
+                continue
+            k = d["n_fields"].to_numpy()
+            ax.bar(mid, np.histogram(k, edges)[0] / len(k), width=bin_w, color=P.RAT_COLORS.get(rat),
+                   alpha=0.55, label="observed")
+            kn = d["n_fields_null_1"].dropna().to_numpy()
+            ax.step(edges, np.r_[np.histogram(kn, edges)[0] / max(len(kn), 1), 0], where="post",
+                    color="k", lw=0.6, label="surrogate")
+            if ref is not None:
+                ax.plot(mid, ref, color="0.35", lw=0.6, ls="--", label=f"log-normal fit, all {rat} sessions")
+            ax.axvline(np.median(k), color=P.RAT_COLORS.get(rat), lw=0.8)
+            ax.set_title(f"day {days[j]}: n = {len(k)}, median {np.median(k):.0f}", fontsize=5.5, pad=2)
+            handles = ax.get_legend_handles_labels()
+        # legend in the first unused panel of this rat's block (or the last panel if the grid is full)
+        spare = len(days) if len(days) < nrow * ncols else nrow * ncols - 1
+        axs[ri * nrow + spare // ncols, spare % ncols].legend(*handles, frameon=False, fontsize=5,
+                                                              loc="center", handlelength=1.2, title=rat)
+        for r in range(nrow):
+            axs[ri * nrow + r, 0].set_ylabel(f"{rat}\nfraction of cells")
+    for a in axs[-1]:
+        a.set_xlabel("fields per cell")
+    return fig
+
+
+def _plot_days(pc):
+    """Box plot of fields per place cell by training day, one panel per rat."""
+    rats = sorted(pc["rat"].unique())
+    fig, axs = P.figure(180, 55, ncols=len(rats), sharey=True, squeeze=False)
+    for ax, rat in zip(axs[0], rats):
+        g = pc[pc["rat"] == rat]
+        days = sorted(g["day"].unique())
+        c = P.RAT_COLORS.get(rat)
+        ax.boxplot([g.loc[g["day"] == d, "n_fields"].to_numpy() for d in days], positions=days, widths=0.6,
+                   patch_artist=True, showfliers=True,
+                   boxprops=dict(facecolor=c, alpha=0.45, lw=0.5), medianprops=dict(color="k", lw=1.0),
+                   whiskerprops=dict(lw=0.5), capprops=dict(lw=0.5),
+                   flierprops=dict(marker=".", ms=1.5, mfc=c, mec="none", alpha=0.6))
+        m = g.groupby("day")["n_fields_null_1"].median()
+        ax.plot(m.index, m.values, "s--", ms=2.5, mfc="w", color="k", lw=0.7, label="surrogate median")
+        for d in g.loc[g["is_switch_day"].astype(bool), "day"].unique():
+            ax.axvline(d - 0.5, color="0.6", lw=0.5, ls=":")
+        ax.set(yscale="log", xlabel="training day", title=rat)
+        ax.set_xticks(days[::2]); ax.set_xticklabels(days[::2])
+        ax.legend(frameon=False)
+    axs[0, 0].set_ylabel("fields per place cell")
+    return fig
 
 
 MODEL_COLORS = {"lognormal": "#0072b2", "gaussian": "#d55e00", "negbin": "#009e73",
@@ -220,7 +314,8 @@ def plot(res, cfg):
     ax[3].plot(m["x"], m["y"], "k-", lw=1.0, label="surrogate (mean)")
     ax[3].set(xscale="log", yscale="log", xlabel="mean running rate (Hz)", ylabel="fields per cell")
     ax[3].legend(frameon=False)
-    return [("field_count", fig)]
+    return [("field_count", fig), ("field_count_by_session", _plot_sessions(pc, fits)),
+            ("field_count_by_day", _plot_days(pc))]
 
 
 # ----------------------------------------------------------------------------- LaTeX report
@@ -234,7 +329,18 @@ CAPTIONS = {"field_count": (
     r"$P(N\geq n)$ per rat on log--log axes with the pooled log-normal and Gaussian fits (dashed). "
     r"Bottom right: field count against mean running rate, one dot per place cell. "
     r"Black: the same cells after circularly shifting their spikes in time (spatial tuning destroyed, "
-    r"rate and maze sampling preserved), i.e.\ the noise floor of the field detector.")}
+    r"rate and maze sampling preserved), i.e.\ the noise floor of the field detector."),
+    "field_count_by_session": (
+    r"\textbf{Fields per place cell in every session.} One panel per session (rat and training day in the "
+    r"title, with the number of place cells and their median field count). Bars: fraction of the session's "
+    r"place cells in bins of three fields; vertical line: median. Black steps: the same cells after a "
+    r"circular spike shift (surrogate). Dashed: log-normal fitted to all sessions of that rat, for reference. "
+    r"All panels share both axes."),
+    "field_count_by_day": (
+    r"\textbf{Fields per place cell across training.} Box plots (median, quartiles, 1.5 IQR whiskers, "
+    r"outliers as dots) of the field count of the place cells recorded on each training day, per rat; "
+    r"log $y$-axis. Open squares: median of the spike-shift surrogates. Dotted vertical lines: first day "
+    r"with a new goal.")}
 
 
 def latex(T):
@@ -283,6 +389,32 @@ def latex(T):
                     headers=dict(n_cells="place cells", n_sessions="sessions", var="variance", fano="Fano",
                                  null_mean="surrogate mean", null_median="surrogate median",
                                  frac_above_null=r"frac.\ $>$ surrogate"), size=r"\footnotesize")
+    ps = T.get("per_session")
+    if ps is not None and len(ps):
+        fitted = ps.dropna(subset=["best_model"])
+        n_ln = int((fitted["best_model"] == "lognormal").sum())
+        others = fitted.loc[fitted["best_model"] != "lognormal", "best_model"].value_counts()
+        rest = ("; the others are best fitted by " + ", ".join(
+            f"{MODEL_LABELS[m]} ({n})" for m, n in others.items())) if len(others) else ""
+        text += (rf"\paragraph{{Per session.}} Session medians range from {ps['median'].min():.0f} to "
+                 rf"{ps['median'].max():.0f} fields per cell (Fig.~\ref{{fig:field_count_by_session}}, "
+                 rf"Fig.~\ref{{fig:field_count_by_day}}, Table~\ref{{tab:field_count:sessions}}). Fitted to "
+                 rf"single sessions, the log-normal has the lowest AIC in {n_ln} of {len(fitted)} sessions{rest}. "
+                 r"With 30--85 cells per session these single-session comparisons have little power "
+                 rf"(median $\Delta$AIC of the Gaussian over the log-normal: "
+                 rf"{(fitted['daic_gaussian'] - fitted['daic_lognormal']).median():.1f})." + "\n\n")
+        t = ps.assign(best_model=ps["best_model"].map(
+            dict(lognormal="log-normal", gaussian="Gaussian", negbin="neg. binomial",
+                 geometric="geometric", poisson="Poisson")).fillna("--"))
+        text += R.table(t, "Fields per place cell in each session. IQR bounds are the 25th and 75th "
+                        r"percentiles; $\Delta$AIC columns are relative to the best model of that session.",
+                        "tab:field_count:sessions",
+                        cols=["rat", "day", "goal", "n_place", "median", "q25", "q75", "max",
+                              "surrogate_median", "best_model", "daic_lognormal", "daic_gaussian"],
+                        headers=dict(n_place="place cells", q25="25\\%", q75="75\\%",
+                                     surrogate_median="surrogate median", best_model="best model",
+                                     daic_lognormal=r"$\Delta$AIC log-normal",
+                                     daic_gaussian=r"$\Delta$AIC Gaussian"), size=r"\scriptsize")
     f = fits.assign(model=fits["model"].map(MODEL_LABELS))
     text += R.table(f, r"Maximum-likelihood fits to the number of fields per place cell ($k\geq1$). "
                     r"Models are sorted by AIC within each group. "

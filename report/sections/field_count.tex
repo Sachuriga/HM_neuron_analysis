@@ -1,6 +1,6 @@
 \section{Number of fields per cell: distribution fits}
 \label{sec:field_count}
-\noindent\textit{Analysis \texttt{field\_count}, 38 sessions, fingerprint \texttt{c0c66d121108}.}
+\noindent\textit{Analysis \texttt{field\_count}, 38 sessions, fingerprint \texttt{3d60f622e353}.}
 
 1{,}881 of 2{,}515 good pyramidal units were place cells (37 sessions, 2 rats); they had 12.79 fields on average (median 9, range 1--72; Table~\ref{tab:field_count:summary}). \textbf{Detector noise floor:} spike-shift surrogates of the same cells (spatial tuning destroyed, rate and sampling preserved) yield 14.54 fields per cell, against 12.79 observed; 34\% of cells have more fields than their own surrogates. Under the present detection criteria the field count is therefore dominated by firing rate and sampling noise rather than by the number of genuine place fields, and the shape of the distribution below should be read with that in mind.
 
@@ -23,6 +23,57 @@ rat & place cells & sessions & mean & median & variance & surrogate mean & surro
 \midrule
 Rat5 & 880 & 18 & 10.9 & 7 & 128 & 12.9 & 9 & 11.7 & 0.302 \\
 Rat6 & 1{,}001 & 19 & 14.4 & 10 & 170 & 15.9 & 11 & 11.8 & 0.369 \\
+\bottomrule
+\end{tabular}
+\end{table}
+\paragraph{Per session.} Session medians range from 6 to 14 fields per cell (Fig.~\ref{fig:field_count_by_session}, Fig.~\ref{fig:field_count_by_day}, Table~\ref{tab:field_count:sessions}). Fitted to single sessions, the log-normal has the lowest AIC in 19 of 37 sessions; the others are best fitted by geometric (10), Gaussian (discretised) (5), negative binomial (ZT) (3). With 30--85 cells per session these single-session comparisons have little power (median $\Delta$AIC of the Gaussian over the log-normal: 2.1).
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\caption{Fields per place cell in each session. IQR bounds are the 25th and 75th percentiles; $\Delta$AIC columns are relative to the best model of that session.}
+\label{tab:field_count:sessions}
+\begin{tabular}{lrrrrrrrrlrr}
+\toprule
+rat & day & goal & place cells & median & 25\% & 75\% & max & surrogate median & best model & $\Delta$AIC log-normal & $\Delta$AIC Gaussian \\
+\midrule
+Rat5 & 1 & 410 & 34 & 12 & 4 & 19.8 & 68 & 10 & geometric & 4.31 & 1.96 \\
+Rat5 & 3 & 410 & 35 & 6 & 3.5 & 14 & 72 & 8 & log-normal & 0 & 6.2 \\
+Rat5 & 4 & 410 & 39 & 8 & 4.5 & 23 & 58 & 11 & geometric & 1.54 & 2.13 \\
+Rat5 & 5 & 410 & 38 & 7 & 3.5 & 12.8 & 39 & 6.5 & geometric & 1.69 & 1.95 \\
+Rat5 & 6 & 314 & 41 & 7 & 3 & 16 & 59 & 7 & log-normal & 0 & 3.34 \\
+Rat5 & 7 & 314 & 31 & 9 & 4 & 12.5 & 60 & 8 & Gaussian & 1.33 & 0 \\
+Rat5 & 8 & 314 & 49 & 6 & 4 & 13 & 43 & 8 & geometric & 5.13 & 1.34 \\
+Rat5 & 9 & 314 & 68 & 7 & 4 & 9 & 46 & 9 & log-normal & 0 & 9.05 \\
+Rat5 & 10 & 314 & 85 & 7 & 4 & 14 & 54 & 11 & log-normal & 0 & 7.84 \\
+Rat5 & 11 & 107 & 56 & 7.5 & 3 & 14.2 & 36 & 10 & geometric & 0.606 & 0.768 \\
+Rat5 & 12 & 107 & 65 & 6 & 4 & 10 & 34 & 8 & log-normal & 0 & 5.35 \\
+Rat5 & 13 & 107 & 67 & 8 & 4 & 11.5 & 42 & 9 & log-normal & 0 & 5.58 \\
+Rat5 & 14 & 107 & 45 & 8 & 4 & 10 & 48 & 8 & log-normal & 0 & 3.51 \\
+Rat5 & 15 & 107 & 45 & 8 & 5 & 19 & 57 & 10 & log-normal & 0 & 4.41 \\
+Rat5 & 16 & 219 & 33 & 8 & 4 & 15 & 21 & 6 & log-normal & 0 & 2.09 \\
+Rat5 & 17 & 219 & 59 & 7 & 4 & 11 & 25 & 9 & neg. binomial & 1.17 & 2.58 \\
+Rat5 & 18 & 219 & 45 & 7 & 4 & 9 & 45 & 10 & log-normal & 0 & 3.61 \\
+Rat5 & 19 & 219 & 45 & 9 & 5 & 27 & 67 & 9 & log-normal & 0 & 3.33 \\
+Rat6 & 1 & 204 & 56 & 12 & 6 & 27.2 & 62 & 13 & log-normal & 0 & 3.77 \\
+Rat6 & 2 & 204 & 42 & 14.5 & 6 & 29 & 70 & 20 & geometric & 0.515 & 0.773 \\
+Rat6 & 3 & 204 & 52 & 13.5 & 8 & 32.5 & 61 & 16 & Gaussian & 7.06 & 0 \\
+Rat6 & 4 & 204 & 30 & 14 & 10.2 & 19 & 56 & 13 & geometric & 4.61 & 0.785 \\
+Rat6 & 5 & 204 & 44 & 11.5 & 6.75 & 27.2 & 72 & 12.5 & geometric & 0.879 & 1.98 \\
+Rat6 & 6 & 109 & 37 & 11 & 6 & 17 & 35 & 14 & neg. binomial & 1.94 & 1.22 \\
+Rat6 & 7 & 109 & 39 & 10 & 6.5 & 17 & 43 & 12 & log-normal & 0 & 4.2 \\
+Rat6 & 8 & 109 & 34 & 11.5 & 7 & 17.5 & 46 & 12 & Gaussian & 4.73 & 0 \\
+Rat6 & 9 & 109 & 45 & 10 & 7 & 18 & 54 & 12 & geometric & 2.65 & 1.36 \\
+Rat6 & 10 & 109 & 54 & 13 & 7.25 & 22 & 58 & 14.5 & neg. binomial & 1.51 & 1.9 \\
+Rat6 & 11 & 318 & 57 & 10 & 6 & 17 & 54 & 12 & log-normal & 0 & 5.97 \\
+Rat6 & 12 & 318 & 63 & 9 & 5 & 18.5 & 55 & 11 & log-normal & 0 & 4.86 \\
+Rat6 & 13 & 318 & 31 & 6 & 4 & 12.5 & 36 & 9 & log-normal & 0 & 3.58 \\
+Rat6 & 14 & 318 & 75 & 9 & 5 & 14.5 & 63 & 12 & log-normal & 0 & 6.67 \\
+Rat6 & 15 & 318 & 76 & 8 & 6 & 15 & 54 & 8 & log-normal & 0 & 25.7 \\
+Rat6 & 16 & 421 & 58 & 8 & 5 & 12 & 25 & 7 & Gaussian & 10.3 & 0 \\
+Rat6 & 17 & 421 & 60 & 10 & 4 & 16.2 & 39 & 9 & Gaussian & 6.19 & 0 \\
+Rat6 & 18 & 421 & 79 & 8 & 5 & 18 & 55 & 10 & log-normal & 0 & 5.25 \\
+Rat6 & 19 & 421 & 69 & 10 & 6 & 20 & 55 & 13 & geometric & 3.72 & 1.15 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -75,6 +126,20 @@ surrogate n\_fields \textasciitilde{} mean\_hz (Spearman) & 0.828 & 0 & 1{,}881 
 \includegraphics[width=\textwidth]{field_count__field_count.pdf}
 \caption{\textbf{Fields per place cell.} Top: distribution over all place cells (bars) with the maximum-likelihood fit of each candidate model, on a linear (left) and logarithmic (right) $y$-axis; $\Delta$AIC relative to the best model in the legend. Bottom left: survival function $P(N\geq n)$ per rat on log--log axes with the pooled log-normal and Gaussian fits (dashed). Bottom right: field count against mean running rate, one dot per place cell. Black: the same cells after circularly shifting their spikes in time (spatial tuning destroyed, rate and maze sampling preserved), i.e.\ the noise floor of the field detector.}
 \label{fig:field_count}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{field_count__field_count_by_day.pdf}
+\caption{\textbf{Fields per place cell across training.} Box plots (median, quartiles, 1.5 IQR whiskers, outliers as dots) of the field count of the place cells recorded on each training day, per rat; log $y$-axis. Open squares: median of the spike-shift surrogates. Dotted vertical lines: first day with a new goal.}
+\label{fig:field_count_by_day}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{field_count__field_count_by_session.pdf}
+\caption{\textbf{Fields per place cell in every session.} One panel per session (rat and training day in the title, with the number of place cells and their median field count). Bars: fraction of the session's place cells in bins of three fields; vertical line: median. Black steps: the same cells after a circular spike shift (surrogate). Dashed: log-normal fitted to all sessions of that rat, for reference. All panels share both axes.}
+\label{fig:field_count_by_session}
 \end{figure}
 
 \clearpage

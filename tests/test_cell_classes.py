@@ -87,6 +87,7 @@ def test_latex_section_from_tables():
         for day in range(1, 9):
             for ct in cc.CELL_TYPES:
                 r = dict(session_id=f"{rat}_{day}", rat=rat, date=20260600 + day, day=day, goal=107,
+                         block=(day - 1) // 4 + 1, gl=cc.gl_label((day - 1) // 4 + 1, (day - 1) % 4),
                          day_in_block=(day - 1) % 4, is_switch_day=day % 4 == 1, is_recall_day=False,
                          cell_type=ct, n_units=40, n_gaps=20, n_gaps_timed=19, stay_med_s=45.0, carry_med_s=17.0,
                          speed_run_m_s=0.2, speed_bridge_long_m_s=0.4, speed_bridge_short_m_s=0.3)
@@ -103,9 +104,12 @@ def test_latex_section_from_tables():
     tex = cc.latex(T)
     assert r"\begin{description}" in tex and tex.count(r"\begin{table}") == 4
     assert "121--302" in tex and "long bridge" in tex
+    assert "GL1S1 & 107" in tex and "GL2S4 & 107" in tex
+    assert tex.count(r"\midrule") == 4 + 2          # one per table + one per goal switch
+    assert cc.gl_label(2, 0) == "GL2S1" and cc.gl_label(0, 0) == "HabS1"
     stripped = tex.replace(r"\_", "")
     for lab in ("tab:cell_classes:Rat5", "tab:cell_classes:Rat6", "tab:cell_classes:summary",
-                "tab:cell_classes:trends"):
+                "tab:cell_classes:trends", "fig:cell_classes_rasters"):
         stripped = stripped.replace(lab, "")
     assert "_" not in stripped                    # no unescaped underscores
     assert mz.island_of(121) != mz.island_of(302)

@@ -65,6 +65,8 @@ MAX_SPEED_M_S = 3.0        # faster = tracking jump (rat put down at the start),
 MIN_STATE_S = 30.0         # a temporal state needs this much time to be tested
 N_CTRL_SETS = 50           # random corridor sets per bridge class
 MIN_CTRL = 5               # fewer matched control locations than this: no control value
+N_EXAMPLES = 3             # example units per class in the raster figure
+EXAMPLE_MIN_HZ = 2.0       # an example fires at least this much in its state
 OCC_MATCH = (0.5, 2.0)     # control occupancy / zone occupancy
 
 SPATIAL = ("goal", "start", "bridge_long", "bridge_short", "bridge")
@@ -201,6 +203,7 @@ def label_states(s, cfg, lm, res=None) -> dict:
     Z["outside"] = outside & rec & ~s.in_trial
     Z["reward"] = reward & rec & ~s.in_trial
     Z["picks"] = picks
+    Z["span"] = (float(t0), float(t1))
     return Z
 
 
@@ -466,6 +469,7 @@ def run(sessions, cfg):
         res = researcher_track(s, cfg)
         U, ctrl_is, ctrl_lab, Z = classify_session(s, cfg, lm, res)
         meta = dict(session_id=common.session_id(row), **{k: row[k] for k in META if k in row})
+        meta["gl"] = gl_label(row["block"], row["day_in_block"])
         U_all.append(U.assign(**meta))
         ses_rows += _session_rows(meta, U, ctrl_is, ctrl_lab, Z, cfg.fields.alpha)
     if not U_all:
@@ -477,36 +481,162 @@ def run(sessions, cfg):
                                track_m=lm.bins["length"].to_numpy()[lm.edge_bins[(a, b)]].sum())
                           for k, edges in bridge_edges(lm).items() for a, b in edges])
     return dict(units=U, sessions=SES, summary=_summary(SES), trends=_trends(SES),
-                overlap=_overlap(U), zones=zones)
+                overlap=_overlap(U), zones=zones, examples=select_examples(U))
 
 
 # ----------------------------------------------------------------------------- plots
 PANELS = ("goal", "start", "outside", "bridge_long", "bridge_short", "reward")
+BLOCK_GAP = 0.8            # x gap between goal blocks, in sessions
+TINT = {"goal": "#f7c6a3", "start": "#b9e3b0", "bridge_long": "#f2b8b8", "bridge_short": "#b8c8f2",
+        "bridge": "#d5c0e0", "outside": "#d9c7ec", "reward": "#f5e3a0"}
+# class -> (event the raster is aligned to, window in s, what a row is)
+RASTER = {"goal": ("goal arrival", (-10.0, 3.0), "trial"),
+          "start": ("trial start", (-2.0, 10.0), "trial"),
+          "bridge_long": ("bridge entry", (-4.0, 8.0), "traversal"),
+          "bridge_short": ("bridge entry", (-4.0, 6.0), "traversal"),
+          "outside": ("pick-up", (-20.0, 25.0), "gap"),
+          "reward": ("goal arrival", (-10.0, 60.0), "trial")}
+RASTER_DT = 0.05
+
+
+def gl_label(block, day_in_block) -> str:
+    """'GL2S3' = third session with the second goal location; block 0 is habituation."""
+    name = f"GL{int(block)}" if int(block) > 0 else "Hab"
+    return f"{name}S{int(day_in_block) + 1}"
+
+
+def _session_x(block, day_in_block, n_per_block=5):
+    """x position that leaves a gap between goal blocks."""
+    return (np.asarray(block, float) - 1) * (n_per_block + BLOCK_GAP) + np.asarray(day_in_block, float)
+
+
+def select_examples(U, n=N_EXAMPLES) -> pd.DataFrame:
+    """The clearest pyramidal members of each class: largest in-state / reference rate
+    ratio among members firing >= EXAMPLE_MIN_HZ in the state, the best of each rat
+    first, at most one unit per session."""
+    rows = []
+    P_ = U[U["cell_type"] == "pyramidal"]
+    for c in PANELS:
+        ref = "rate_maze" if c in TEMPORAL else "rate_run"
+        d = P_[P_[f"is_{c}"] & (P_[f"rate_{c}"] >= EXAMPLE_MIN_HZ)].copy()
+        if d.empty:
+            d = P_[P_[f"is_{c}"]].copy()
+        d["score"] = d[f"rate_{c}"] / (d[ref] + 0.1)
+        d = d.sort_values("score", ascending=False)
+        first = d.groupby("rat", sort=False).head(1)
+        rest = d.drop(first.index)
+        rest = rest[~rest["session_id"].isin(first["session_id"])].drop_duplicates("session_id")
+        pick = pd.concat([first, rest]).head(n).sort_values("score", ascending=False)
+        for k, r in enumerate(pick.itertuples()):
+            rows.append(dict(cls=c, rank=k + 1, rat=r.rat, date=str(r.date), session_id=r.session_id,
+                             gl=r.gl, goal=int(r.goal), unit=int(r.unit), rate=getattr(r, f"rate_{c}"),
+                             rate_ref=getattr(r, ref), p=getattr(r, f"p_{c}")))
+    return pd.DataFrame(rows)
+
+
+def raster_events(s, Z, lm, cls) -> np.ndarray:
+    """Times the raster of `cls` is aligned to (one row each), inside the spike record."""
+    picks = Z["picks"]
+    if cls in ("goal", "reward"):
+        if picks is not None and len(picks):
+            p = picks[picks["ended_at_goal"]]
+            t = (p[np.isfinite(p["t_pick"])] if cls == "reward" else p)["t_end"].to_numpy()
+        else:
+            t = s.trials["t_end"].to_numpy() if cls == "goal" else np.array([])
+    elif cls == "start":
+        t = s.trials["t_start"].to_numpy()
+    elif cls == "outside":
+        t = np.array([]) if picks is None else picks.loc[
+            np.isfinite(picks["t_pick"]) & np.isfinite(picks["t_next"]), "t_pick"].to_numpy()
+    else:                                                    # entries onto a bridge, >= 2 s apart
+        on = s.in_trial & (s.bin >= 0) & bridge_bins(lm)[cls][np.clip(s.bin, 0, None)]
+        t = s.t[np.where(on & ~np.r_[False, on[:-1]])[0]]
+        t = t[np.r_[True, np.diff(t) >= 2.0]] if len(t) else t
+    t0, t1 = Z["span"]
+    return np.sort(t[(t >= t0) & (t <= t1)])
+
+
+def raster_data(s, Z, lm, cls, unit):
+    """(events, state (n_events, n_bins): 2 = defining state, 1 = reference, 0 = unused,
+    spike_x, spike_row) for the raster of `unit`."""
+    _, (w0, w1), _ = RASTER[cls]
+    ev = raster_events(s, Z, lm, cls)
+    tau = np.arange(w0, w1, RASTER_DT) + RASTER_DT / 2
+    tt = ev[:, None] + tau[None]
+    i = np.clip(np.searchsorted(s.t, tt), 0, len(s.t) - 1)
+    ref = Z["maze"] if cls in TEMPORAL else Z["run"]
+    state = np.where(Z[cls][i], 2, np.where(ref[i], 1, 0))
+    state[(tt < Z["span"][0]) | (tt > Z["span"][1])] = 0
+    spk = np.sort(s.spikes[unit])
+    a, b = np.searchsorted(spk, ev + w0), np.searchsorted(spk, ev + w1)
+    x = np.concatenate([spk[i0:i1] - e for i0, i1, e in zip(a, b, ev)]) if len(ev) else np.array([])
+    row = np.repeat(np.arange(len(ev)), b - a) if len(ev) else np.array([], int)
+    return ev, state, x, row
+
+
+def _plot_rasters(EX, cfg):
+    from matplotlib.colors import ListedColormap
+    lm = mz.maze_from_cfg(cfg)
+    ncol = int(EX.groupby("cls").size().max())
+    fig, ax = P.figure(180, 215, nrows=len(PANELS), ncols=ncol, squeeze=False)
+    cache = {}
+    for r, c in enumerate(PANELS):
+        event, (w0, w1), rowname = RASTER[c]
+        cm = ListedColormap(["white", "0.9", TINT[c]])
+        ex = EX[EX["cls"] == c].sort_values("rank")
+        for k in range(ncol):
+            a = ax[r, k]
+            if k >= len(ex):
+                a.axis("off")
+                continue
+            e = ex.iloc[k]
+            if e["session_id"] not in cache:
+                s = io.load_session(cfg, e["rat"], str(e["date"]))
+                cache[e["session_id"]] = (s, label_states(s, cfg, lm, researcher_track(s, cfg)))
+            s, Z = cache[e["session_id"]]
+            ev, state, x, row = raster_data(s, Z, lm, c, int(e["unit"]))
+            if len(ev):
+                a.imshow(state, cmap=cm, vmin=0, vmax=2, aspect="auto", origin="lower",
+                         interpolation="nearest", extent=(w0, w1, -0.5, len(ev) - 0.5))
+                a.vlines(x, row - 0.4, row + 0.4, color="k", lw=0.35)
+            a.axvline(0, color="k", lw=0.5, ls=":")
+            a.set(xlim=(w0, w1), ylim=(-0.5, max(len(ev), 1) - 0.5))
+            a.set_title(f"{e['rat']} {e['gl']} (goal {int(e['goal'])}), unit {int(e['unit'])}\n"
+                        f"{e['rate']:.1f} vs {e['rate_ref']:.1f} Hz", fontsize=6)
+            a.set_xlabel(f"time from {event} (s)")
+            if k == 0:
+                a.set_ylabel(f"{LABELS[c]} cells\n{rowname}", fontsize=6.5)
+    return fig
 
 
 def plot(res, cfg):
     SES = res["sessions"]
-    d = SES[SES["cell_type"] == "pyramidal"]
-    fig, ax = P.figure(180, 105, nrows=2, ncols=3, sharex=True)
+    d = SES[SES["cell_type"] == "pyramidal"].copy()
+    d["x"] = _session_x(d["block"], d["day_in_block"])
+    ticks = d.drop_duplicates(["block", "day_in_block"]).sort_values("x")
+    fig, ax = P.figure(180, 115, nrows=2, ncols=3, sharex=True)
     for a, c in zip(ax.ravel(), PANELS):
         for rat, g in d.groupby("rat"):
-            g = g.sort_values("day")
             col = P.RAT_COLORS.get(rat)
-            a.plot(g["day"], 100 * g[f"frac_{c}"], "o-", ms=3, color=col, label=rat)
-            if c in CONTROLLED:
-                a.plot(g["day"], 100 * g[f"ctrl_{c}"] / g["n_units"].where(g["n_units"] > 0), ":", color=col,
-                       label=f"{rat}, control locations")
-        for day in sorted(d.loc[d["is_switch_day"].astype(bool), "day"].unique()):
-            a.axvline(day - 0.5, color="0.85", lw=0.6, zorder=0)
+            goals = ", ".join(str(int(v)) for v in g.sort_values("block").drop_duplicates("block")["goal"])
+            for j, (_, gb) in enumerate(g.sort_values("x").groupby("block")):   # one line per goal
+                a.plot(gb["x"], 100 * gb[f"frac_{c}"], "o-", ms=3, color=col,
+                       label=f"{rat} (goal nodes {goals})" if j == 0 else None)
+                if c in CONTROLLED:
+                    a.plot(gb["x"], 100 * gb[f"ctrl_{c}"] / gb["n_units"].where(gb["n_units"] > 0), ":",
+                           color=col, label=f"{rat}, control locations" if j == 0 else None)
+        for b in sorted(d["block"].unique())[1:]:
+            a.axvline(float(_session_x(b, 0)) - (1 + BLOCK_GAP) / 2, color="0.85", lw=0.6, zorder=0)
         a.axhline(100 * cfg.fields.alpha, color="k", lw=0.6, ls="--")
         a.set_ylim(bottom=0)
         a.set_title(f"{LABELS[c]} cells")
-    for a in ax[1]:
-        a.set_xlabel("day")
+        a.set_xticks(ticks["x"])
+        a.set_xticklabels([gl_label(b, k) for b, k in zip(ticks["block"], ticks["day_in_block"])],
+                          rotation=90, fontsize=5)
     for a in ax[:, 0]:
         a.set_ylabel("% of pyramidal units")
     h, lab = ax[0, 0].get_legend_handles_labels()
-    fig.legend(h, lab, frameon=False, ncol=len(lab), loc="outside lower center")
+    fig.legend(h, lab, frameon=False, ncol=2, loc="outside lower center")
 
     lm = mz.maze_from_cfg(cfg)
     bb = bridge_bins(lm)
@@ -519,7 +649,11 @@ def plot(res, cfg):
     ax2.legend([Line2D([], [], color=cm(1.0 / 1.3 + 0.15 / 1.3), lw=2.5),
                 Line2D([], [], color=cm(0.15 / 1.3), lw=2.5)],
                ["long bridge", "short bridge"], frameon=False, loc="lower left")
-    return [("cell_classes", fig), ("cell_classes_zones", fig2)]
+    figs = [("cell_classes", fig), ("cell_classes_zones", fig2)]
+    EX = res.get("examples")
+    if EX is not None and len(EX):
+        figs.insert(1, ("cell_classes_rasters", _plot_rasters(EX, cfg)))
+    return figs
 
 
 # ----------------------------------------------------------------------------- LaTeX report
@@ -528,12 +662,37 @@ CAPTIONS = {
         r"\textbf{Cell classes across training days} (good pyramidal units). One line per rat; "
         r"dotted lines: the same test at control locations with similar running occupancy (other "
         r"nodes for the goal, random within-island corridors of the same length for the bridges). "
-        r"Dashed black line: the 5\,\% expected from the test alone. Grey vertical lines: first day "
-        r"with a new goal. Classes are not exclusive."),
+        r"Dashed black line: the 5\,\% expected from the test alone. Sessions are labelled GL$n$S$x$, "
+        r"the $x$-th session with the $n$-th goal location (goal nodes in the legend); lines are "
+        r"broken and separated by a grey line at every goal switch. Classes are not exclusive."),
+    "cell_classes_rasters": (
+        r"\textbf{Example units of each class} (rows of panels), three per class. Each line of a raster "
+        r"is one trial, bridge traversal or inter-trial gap, aligned to the event on the $x$-axis; black "
+        r"ticks are spikes. Coloured background: the samples that define the class (the state); grey: the "
+        r"samples it is compared with (the reference); white: not used. For the goal, start and bridge "
+        r"classes only running samples count, so pauses are white. A unit is in the class when it fires "
+        r"more on the coloured than on the grey background. Title: session, goal node, unit, and rate in "
+        r"the state against the reference rate. Examples are the members with the largest rate ratio "
+        r"among those firing at least 2\,Hz in the state (best of each rat first, one unit per session), "
+        r"so they show the clearest cases and not typical ones."),
     "cell_classes_zones": (
         r"\textbf{Long and short bridges.} The five corridors that join two islands, split at "
         r"1\,m: two long ones (red) and three short ones (blue). Node zones are not part of a bridge."),
 }
+
+
+def _rule_between_goals(tex, labels):
+    """Insert a \\midrule in a session table wherever the goal location (the GLn part) changes."""
+    out, prev = [], None
+    rows = {f"{lab} &": lab.split("S")[0] for lab in labels}
+    for line in tex.split("\n"):
+        gl = next((v for k, v in rows.items() if line.startswith(k)), None)
+        if gl is not None:
+            if prev is not None and gl != prev:
+                out.append(r"\midrule")
+            prev = gl
+        out.append(line)
+    return "\n".join(out)
 
 
 def _pct(k, n):
@@ -582,7 +741,9 @@ def latex(T):
         rf"The rat stayed at the goal for a median of {stay:.0f}\,s and was then carried for "
         rf"{carry:.0f}\,s, so ``between trials'' is mostly time at the goal; it is listed as its own "
         r"class and is not part of the outside-maze class. All states are restricted to the span of "
-        r"the spike record." "\n\n")
+        r"the spike record. Figure~\ref{fig:cell_classes_rasters} shows example units of every class "
+        r"with the samples that define it. Sessions are labelled GL$n$S$x$, the $x$-th session with "
+        r"the $n$-th goal location, so the last session of a goal is the recall day before the switch." "\n\n")
 
     P_ = SUM[(SUM["cell_type"] == "pyramidal") & (SUM["group"] == "pooled")].set_index("cls")
     items = []
@@ -632,15 +793,17 @@ def latex(T):
 
     for rat, g in pyr.groupby("rat"):
         g = g.sort_values("day")
-        tab = pd.DataFrame({"day": g["day"].astype(int), "goal node": g["goal"].astype(int).astype(str),
-                            "units": g["n_units"].astype(int)})
+        tab = pd.DataFrame({"session": g["gl"].astype(str), "goal node": g["goal"].astype(int).astype(str),
+                            "day": g["day"].astype(int), "units": g["n_units"].astype(int)})
         for c in ("goal", "start", "bridge_long", "bridge_short", "bridge", "outside", "reward"):
             tab[LABELS[c]] = [_pct(k, n) for k, n in zip(g[f"n_{c}"], g["n_units"])]
-        text += R.table(tab, rf"{R.esc(rat)}: number of good pyramidal units in each class per session "
-                        r"(percentage of the units tested). Classes are not exclusive; ``any bridge'' "
-                        r"pools the five corridors and is not the sum of long and short.",
-                        f"tab:cell_classes:{rat}", headers={"at goal after arrival": "at goal"},
-                        size=r"\scriptsize")
+        tex = R.table(tab, rf"{R.esc(rat)}: number of good pyramidal units in each class per session "
+                      r"(percentage of the units tested). GL$n$S$x$: $x$-th session with the $n$-th goal "
+                      r"location; a rule separates goal locations. Classes are not exclusive; ``any "
+                      r"bridge'' pools the five corridors and is not the sum of long and short.",
+                      f"tab:cell_classes:{rat}", headers={"at goal after arrival": "at goal"},
+                      size=r"\scriptsize")
+        text += _rule_between_goals(tex, g["gl"].astype(str).tolist())
 
     s = SUM[SUM["cls"] != "bridge"].copy()
     s["cls"] = s["cls"].map(LABELS)
